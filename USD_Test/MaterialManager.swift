@@ -12,7 +12,7 @@ import UIKit
 
 class MaterialManager {
     
-    static func createPBRMaterial(texture: String, normal: String?) -> PhysicallyBasedMaterial {
+    static func createPBRMaterial(texture: String, normal: String?, doubleSided: Bool = false) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         
         // Load and assign the base color texture.
@@ -23,6 +23,9 @@ class MaterialManager {
             material.baseColor = PhysicallyBasedMaterial.BaseColor(texture: baseColorTexture)
             material.blending = .init(blending: .transparent(opacity: 0.9999))
             material.opacityThreshold = 0.0 // IMPORTANT
+            if doubleSided {
+                material.faceCulling = .none
+            }
         } else {
             // Fallback to a solid white tint if the texture fails to load.
             material.baseColor = .init(tint: .white, texture: nil)
@@ -43,6 +46,23 @@ class MaterialManager {
         
         return material
     }
+    
+    static func transparentMaterial() -> PhysicallyBasedMaterial {
+        var material = PhysicallyBasedMaterial()
+        material.baseColor = PhysicallyBasedMaterial.BaseColor(tint: .clear, texture: nil)
+        material.blending = .transparent(opacity: 0.01)
+        material.opacityThreshold = 0.0 // IMPORTANT
+        return material
+    }
+    
+    static func metallicMaterial(color: UIColor) -> PhysicallyBasedMaterial {
+        var material = PhysicallyBasedMaterial()
+        material.metallic = PhysicallyBasedMaterial.Metallic(0.8)
+        material.roughness = PhysicallyBasedMaterial.Roughness(0.1)
+        material.baseColor = PhysicallyBasedMaterial.BaseColor(tint: color, texture: nil)
+        material.faceCulling = .none
+        return material
+    }
 
     static func createCustomFaceMaterial(color: UIColor, normal: String, opacity: String) -> CustomMaterial? {
         guard let device = MTLCreateSystemDefaultDevice() else {
@@ -54,7 +74,7 @@ class MaterialManager {
         
         // Create a base physically based material and configure its properties.
         var baseMaterial = MaterialManager.createPBRMaterial(color: color, normal: normal, opacity: opacity)
-        
+        baseMaterial.writesDepth = false
         // Load your opacity texture.
         var opacityTexture: TextureResource? = nil
         if let resource = try? TextureResource.load(named: opacity) {
@@ -74,15 +94,46 @@ class MaterialManager {
             let customMaterial = try CustomMaterial(from: baseMaterial,
                                                     surfaceShader: surfaceShader,
                                                     geometryModifier: nil) // No geometry modifier needed.
-            // Bind your additional textures and uniforms.
-//            customMaterial.customBindings["u_opacityTexture"] = MaterialParameters.Texture(opacityTexture!)
-//            customMaterial.customBindings["u_opacityScale"] = MaterialParameters.Float(opacityScale)
             return customMaterial
         } catch {
             print("Error creating custom material: \(error.localizedDescription)")
             return nil
         }
     }
+    
+    static func createCustomOutlineMaterial(baseTint: UIColor = .white) -> CustomMaterial? {
+            // Create a base PBR material.
+            var baseMaterial = PhysicallyBasedMaterial()
+            // You can adjust blending properties if needed.
+            baseMaterial.blending = .transparent(opacity: 1.0)
+            baseMaterial.opacityThreshold = 0.0
+            
+            // Set the base tint (this value will be passed to the shader).
+            // In RealityKit, material constants are set based on the underlying material.
+            // One way to modify these constants is by updating the baseColor tint.
+            baseMaterial.baseColor.tint = baseTint
+            
+            // Get the default Metal device and library.
+            guard let device = MTLCreateSystemDefaultDevice(),
+                  let library = device.makeDefaultLibrary() else {
+                print("Error: Unable to create Metal device or default library.")
+                return nil
+            }
+            
+            // Create a surface shader from our custom shader function.
+            let surfaceShader = CustomMaterial.SurfaceShader(named: "customOutlineShader", in: library)
+            
+            // Create and return the custom material.
+            do {
+                let customMaterial = try CustomMaterial(from: baseMaterial,
+                                                        surfaceShader: surfaceShader,
+                                                        geometryModifier: nil) // No geometry modifier needed.
+                return customMaterial
+            } catch {
+                print("Error creating custom material: \(error.localizedDescription)")
+                return nil
+            }
+        }
     
     static func createPBRMaterial(color: UIColor, normal: String, opacity: String) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()

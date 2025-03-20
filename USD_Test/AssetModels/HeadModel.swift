@@ -31,7 +31,7 @@ class HeadModel: ObservableObject {
         
         // Create and apply the PBR material.
         let pbrMaterial = MaterialManager.createPBRMaterial(texture: "Head_medium", normal: "Head_Normal")
-        
+        //let pbrMaterial = MaterialManager.transparentMaterial()
         headArmature.setMaterial(pbrMaterial)
         
         // Adjust blendshape weights on the head armature.
@@ -49,6 +49,8 @@ class HeadModel: ObservableObject {
             headBlendShape.weightSet[0].weights = currentWeights
             headArmature.components.set(headBlendShape)
         }
+        
+        headArmature.orientation = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
         
         // Optionally, play the first available animation.
 //        if let animationResource = headArmature.availableAnimations.first {
