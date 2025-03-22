@@ -12,7 +12,7 @@ import UIKit
 
 class MaterialManager {
     
-    static func createPBRMaterial(texture: String, normal: String?, doubleSided: Bool = false) -> PhysicallyBasedMaterial {
+    static func createPBRMaterial(texture: String, normal: String?, metalness: Float = 0.0, roughness: Float = 0.5, doubleSided: Bool = false) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         
         // Load and assign the base color texture.
@@ -43,6 +43,9 @@ class MaterialManager {
                 print("Error: Unable to load normal texture named \(normal).")
             }
         }
+        
+        material.metallic = PhysicallyBasedMaterial.Metallic(floatLiteral: metalness)
+        material.roughness = PhysicallyBasedMaterial.Roughness(floatLiteral: roughness)
         
         return material
     }

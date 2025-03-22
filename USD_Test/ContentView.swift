@@ -42,10 +42,9 @@ struct ARContainerView: UIViewRepresentable {
                 // Check if the tapped entity is one of our spheres.
                 print("Sphere tapped!")
                 // For example, change its color to green.
-                let material = MaterialManager.transparentMaterial()
                 if var modelEntity = tappedEntity as? ModelEntity {
-                    modelEntity.model?.materials = [material]
-                    NotificationCenter.default.post(name: .accessoryTapped, object: tappedEntity)
+                   
+                    NotificationCenter.default.post(name: .accessoryTapped, object: modelEntity)
                 }
             }
         }
@@ -59,12 +58,12 @@ struct ARContainerView: UIViewRepresentable {
         // Set up your AR scene.
         AttachmentSystem.registerSystem()
         AttachmentComponent.registerComponent()
+        
         let baseDistance: Float = 0.25
         let minDistance: Float = 0.02
         let distance = minDistance + (baseDistance - minDistance) * (9 - zoom) / 9
         
         let anchor = AnchorEntity(world: [0, -0.2, -distance])
-       
         for clone in faceModel.clones {
             anchor.addChild(clone)
         }
@@ -73,18 +72,24 @@ struct ARContainerView: UIViewRepresentable {
         anchor.addChild(browModel.browArmature)
         anchor.addChild(eyesModel.eyesInnerArmature)
         anchor.addChild(eyesModel.eyesOuterArmature)
-        // anchor.addChild(earringsModel.earringLeft)
-        arView.scene.addAnchor(anchor)
         
+        // Add the head (and other models) to the scene.
+        arView.scene.addAnchor(anchor)
         context.coordinator.anchor = anchor
         setupEnvironment(for: arView)
         arView.session.pause()
-        setupEarrings(arView: arView, headModel: headModel.headArmature, earringLeft: earringsModel.earringLeft, earringRight: earringsModel.earringRight)
         
-        // Rotate the anchor 30° around the Y axis.
-        anchor.orientation = simd_quatf(angle: .pi/7, axis: SIMD3<Float>(0, 1, 0))
+        // Set up earrings by first attaching them to the head.
+        // Then add the earring parent entity to the scene.
+        let earringAnchor = AnchorEntity()
+        earringAnchor.addChild(earringsModel.parent)
+        earringsModel.headModel = headModel.headArmature
+        arView.scene.addAnchor(earringAnchor)
         
-        // Add tap gesture recognizer using the coordinator's handler.
+        // Rotate the anchor.
+        anchor.orientation = simd_quatf(angle: .pi/6, axis: SIMD3<Float>(0, 1, 0))
+        
+        // Add the tap gesture recognizer.
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
         arView.addGestureRecognizer(tapGesture)
         
@@ -107,81 +112,8 @@ struct ARContainerView: UIViewRepresentable {
             let minDistance: Float = 0.001
             let distance = minDistance + (baseDistance - minDistance) * (9 - zoom) / 1
             anchor.transform = Transform(translation: SIMD3<Float>(0, 0, -distance))
-            anchor.orientation = simd_quatf(angle: .pi/6, axis: SIMD3<Float>(0, 1, 0))
+           // anchor.orientation = simd_quatf(angle: .pi/6, axis: SIMD3<Float>(0, 1, 0))
         }
-    }
-    
-    func setupEarrings(arView: ARView, headModel: ModelEntity, earringLeft: ModelEntity, earringRight: ModelEntity) {
-        guard let skeleton = headModel.findEntity(named: "Armature") as? ModelEntity else {
-            fatalError("Head skeleton not found")
-        }
-        
-        let earringOffset = Transform(
-            scale: SIMD3<Float>(1, 1, 1),
-            rotation: simd_quatf(angle: .pi/2, axis: SIMD3<Float>(1, 0, 0)),
-            translation: SIMD3<Float>(0, 0, 0)
-        ).matrix
-        
-        // Create or update the AttachmentComponent.
-        var attachmentComponent: AttachmentComponent
-        if let existing = skeleton.components[AttachmentComponent.self] as? AttachmentComponent {
-            attachmentComponent = existing
-        } else {
-            attachmentComponent = AttachmentComponent()
-        }
-        
-        // Setup right earring.
-        if let jointChainRight = getJointHierarchy(skeleton, for: "Bone_earring_right") {
-            let rightAttachment = Attachment(jointIndices: jointChainRight,
-                                             offset: earringOffset,
-                                             attachmentEntity: earringRight)
-            attachmentComponent.attachments.append(rightAttachment)
-        } else {
-            fatalError("Right earring bone not found in head model.")
-        }
-        
-        // Setup left earring.
-        if let jointChainLeft = getJointHierarchy(skeleton, for: "Bone_earring_left") {
-            let leftAttachment = Attachment(jointIndices: jointChainLeft,
-                                            offset: earringOffset,
-                                            attachmentEntity: earringLeft)
-            attachmentComponent.attachments.append(leftAttachment)
-        } else {
-            fatalError("Left earring bone not found in head model.")
-        }
-        
-        // Re-assign the updated component to the skeleton.
-        skeleton.components.set(attachmentComponent)
-        
-        // Optionally add anchors.
-        let leftAnchor = AnchorEntity()
-        leftAnchor.addChild(earringLeft)
-        arView.scene.addAnchor(leftAnchor)
-        
-        let rightAnchor = AnchorEntity()
-        rightAnchor.addChild(earringRight)
-        arView.scene.addAnchor(rightAnchor)
-    }
-    
-    func getJointHierarchy(_ skeleton: ModelEntity, for jointSuffix: String) -> [Int]? {
-        guard let targetIndex = skeleton.getJointIndex(suffix: jointSuffix) else {
-            return nil
-        }
-        let targetJointName = skeleton.jointNames[targetIndex]
-        var components = targetJointName.components(separatedBy: "/")
-        
-        var jointChain: [Int] = []
-        while !components.isEmpty {
-            let jointPath = components.joined(separator: "/")
-            if let index = skeleton.jointNames.firstIndex(of: jointPath) {
-                jointChain.append(index)
-            } else {
-                return nil
-            }
-            components.removeLast()
-        }
-        
-        return jointChain
     }
 }
 
@@ -211,11 +143,36 @@ struct ContentView: View {
                     lashesModel.playAnimation()
                     eyesModel.playAnimation()
                 }
+                Button("load ear") {
+                    earringsModel.loadModelOnAvatar(AssetModel.mockEarringsData[0])
+                }
+                Button("load access") {
+                    earringsModel.selectAsset(accessoryModel)
+                }
             }
             
             Text("Zoom: \(zoom, specifier: "%.1f")")
                 .padding()
         }
+    }
+    
+    var accessoryModel: AssetModel {
+        return AssetModel(id: "1", type: .gems,
+                                   thumbName: "thumb_crystal_36",
+                                   thumbUrl: "",
+                                   sceneName: "shell_round",
+                                   objNames: ["shell_round"],
+                                   textures: ["shell_round": "shell_color.jpg"],
+                                   opacity: nil,
+                                   roughness: ["shell_round": 0.2],
+                                   metalness: ["shell_round": 0.2],
+                                   normal: ["shell_round": "shell_normal.jpg"],
+                                   doubleSided: nil,
+                          scale: 0.8,
+                                   tags: [ThemeTag.clouds, ThemeTag.fairy],
+                                   unlockType: UnlockType.coins,
+                                   pointLevel: .basic,
+                                   unlockAmount: 1)
     }
 }
 

@@ -25,93 +25,152 @@ struct AccessoryPlacement: Codable {
 }
 
 
-class EarringsModel: ObservableObject {
+class EarringsModel: BaseModel, ObservableObject {
     
-    var earringLeft: ModelEntity
-    var earringRight: ModelEntity
+    var earringLeft: ModelEntity?
+    var earringRight: ModelEntity?
     var placementObjects: [Entity] = []
     
     var rightPlacement: [String: AccessoryPlacement] = [:]
     var leftPlacement: [String: AccessoryPlacement] = [:]
     var centerPlacement: [String: AccessoryPlacement] = [:]
-    var selectedModel: AssetModel?
     
-    init() {
-        // 1. Set up the selected model.
-        selectedModel = AssetModel(id: "1", type: .gems,
-                                   thumbName: "thumb_crystal_36",
-                                   thumbUrl: "",
-                                   sceneName: "shell_round",
-                                   objNames: ["shell_round"],
-                                   textures: ["shell_round": "shell_color.jpg"],
-                                   opacity: nil,
-                                   roughness: ["shell_round": 0.2],
-                                   metalness: ["shell_round": 0.2],
-                                   normal: ["shell_round": "shell_normal.jpg"],
-                                   doubleSided: nil,
-                                   scale: 1,
-                                   tags: [ThemeTag.clouds, ThemeTag.fairy],
-                                   unlockType: UnlockType.coins,
-                                   pointLevel: .basic,
-                                   unlockAmount: 1)
-        
-        // 2. Load the USD file and get temporary values.
-        let tempEarringLeft: ModelEntity
-        let tempPlacementObjects: [Entity]
-        do {
-            let separated = try EarringsModel.loadAndSeparateEntities(named: "earring_hollow_loop")
-            tempEarringLeft = separated.nonEarx
-            tempPlacementObjects = separated.earxEntities
-            
-            // Optionally apply a metallic material to the temp earring.
-            let material = MaterialManager.metallicMaterial(color: .yellow)
-            tempEarringLeft.setMaterial(material)
-            
-            // Reparent placement containers to the temp earring.
-            for placement in tempPlacementObjects {
-                placement.removeFromParent()
-                tempEarringLeft.addChild(placement)
-            }
-        } catch {
-            fatalError("Failed to load earring: \(error)")
-        }
-        
-        // 3. Assign computed values to self.
-        self.earringLeft = tempEarringLeft
-        self.placementObjects = tempPlacementObjects
-        // Temporarily initialize earringRight with a dummy instance.
-        self.earringRight = ModelEntity()
-        
-        // 4. Now that all stored properties are initialized, you can call instance methods.
-        self.replacePlacementObjectsWithSpheres(earringLeft: self.earringLeft,
-                                                 placementObjects: self.placementObjects)
-        
-        // 5. Create a mirrored clone of earringLeft for earringRight.
-        self.earringRight = self.earringLeft.clone(recursive: true)
-        var mirroredScale = self.earringRight.scale
-        mirroredScale.x = -abs(mirroredScale.x)  // Mirror along the X axis.
-        self.earringRight.scale = mirroredScale
-        
-        // 6. Register for accessory tap notifications.
+    override init() {
+       super.init()
         NotificationCenter.default.addObserver(self,
                                                selector: #selector(handleAccessoryTap(_:)),
                                                name: .accessoryTapped,
                                                object: nil)
     }
+    
+    /// Loads the earring models on the avatar. This method loads the left earring,
+    /// creates a mirrored right earring, replaces placement objects with spheres,
+    /// and sets up attachments on the head skeleton.
+    /// - Parameter model: The asset model (currently unused in this snippet, but can be used for further customization).
+    func loadModelOnAvatar(_ model: AssetModel) {
 
+        removeAll()
+        // 1. Retrieve the head's skeleton.
+        guard let headModel = headModel, let skeleton = headModel.findEntity(named: "Armature") as? ModelEntity else {
+            fatalError("Head skeleton not found")
+        }
+        
+        // 2. Define the offset transform for both attachments.
+        let earringOffset = Transform(
+            scale: SIMD3<Float>(1, 1, 1),
+            rotation: simd_quatf(angle: .pi/2, axis: SIMD3<Float>(1, 0, 0)),
+            translation: SIMD3<Float>(0, 0, 0)
+        ).matrix
+        
+        // 3. Load the left earring model and its placement objects.
+        let loadedEarring: ModelEntity
+        let loadedPlacements: [Entity]
+        do {
+            (loadedEarring, loadedPlacements) = try loadModel(from: model)
+        } catch {
+            fatalError("Failed to load earring: \(error)")
+        }
+        self.earringRight = loadedEarring
+        self.placementObjects = loadedPlacements
+        if let earringRight = self.earringRight {
+           self.replacePlacementObjectsWithSpheres(earringLeft: earringRight, placementObjects: self.placementObjects)
+        }
+        if let earringRight = self.earringRight {
+            self.earringLeft = createMirroredEarring(from: earringRight)
+        }
+        guard let leftEarring = self.earringLeft,
+              let rightEarring = self.earringRight else {
+            fatalError("Earring models are not initialized properly.")
+        }
+        
+        guard let leftAttachment = createAttachment(for: leftEarring, on: skeleton, boneName: "Bone_earring_left", offset: earringOffset) else {
+            fatalError("Left earring bone not found in head model.")
+        }
+        guard let rightAttachment = createAttachment(for: rightEarring, on: skeleton, boneName: "Bone_earring_right", offset: earringOffset) else {
+            fatalError("Right earring bone not found in head model.")
+        }
+        parent.addChild(leftEarring)
+        parent.addChild(rightEarring)
+        
+        // 7. Update the skeleton with these attachments.
+        updateSkeletonAttachmentComponent(skeleton: skeleton, with: [leftAttachment, rightAttachment])
+    }
+    
+    override func removeAll() {
+        // Remove individual earrings if present
+        earringLeft?.removeFromParent()
+        earringRight?.removeFromParent()
+        
+        // Remove all placement objects from their parents
+        placementObjects.forEach { $0.removeFromParent() }
+        
+        // Clear class variables
+        placementObjects.removeAll()
+        earringLeft = nil
+        earringRight = nil
+    }
+    
+    /// Mirrors a transform along the X axis.
+    private func mirrorTransform(_ transform: Transform) -> Transform {
+        let mirrorMatrix = simd_float4x4(diagonal: SIMD4<Float>(-1, 1, 1, 1))
+        let newMatrix = mirrorMatrix * transform.matrix
+        return Transform(matrix: newMatrix)
+    }
+
+    /// Recursively apply the mirror transformation to every child node.
+    private func mirrorChildNodes(of entity: Entity) {
+        for child in entity.children {
+            child.transform = mirrorTransform(child.transform)
+            mirrorChildNodes(of: child)
+        }
+    }
+
+    /// Creates a mirrored clone of the left earring by cloning and then mirroring
+    /// the transform of the root and all its child nodes.
+    private func createMirroredEarring(from leftEarring: ModelEntity) -> ModelEntity {
+        let mirrored = leftEarring.clone(recursive: true)
+        mirrored.name = "EarringRight"
+        mirrored.transform = mirrorTransform(mirrored.transform)
+        mirrorChildNodes(of: mirrored)
+        
+        return mirrored
+    }
+    
+    
+    /// Updates (or creates) the AttachmentComponent on the skeleton with the provided attachments.
+    /// - Parameters:
+    ///   - skeleton: The head’s skeleton entity.
+    ///   - newAttachments: An array of attachments to add.
+    private func updateSkeletonAttachmentComponent(skeleton: ModelEntity, with newAttachments: [Attachment]) {
+        var attachmentComponent: AttachmentComponent
+        if let existing = skeleton.components[AttachmentComponent.self] {
+            attachmentComponent = existing
+        } else {
+            attachmentComponent = AttachmentComponent()
+        }
+        // Append new attachments.
+        attachmentComponent.attachments.append(contentsOf: newAttachments)
+        skeleton.components.set(attachmentComponent)
+    }
+    
+    func createPlacementModel(model: AssetModel) {
+        selectedAccessoryModel = model
+        activePlacement = loadAssetModel(model)
+    }
+    
     /// Loads the USD file and separates its contents into two groups:
     /// - nonEarx: A ModelEntity that contains all objects whose names do NOT contain "earx"
     /// - earxEntities: An array of ModelEntities that have "earx" in their name.
     /// Loads the USD file and separates its contents into two groups:
         /// - nonEarx: A ModelEntity that contains all objects whose names do NOT contain "earx"
         /// - earxEntities: An array of Entities (the placement containers) that have "earx" in their name.
-    static func loadAndSeparateEntities(named name: String) throws -> (nonEarx: ModelEntity, earxEntities: [Entity]) {
+    static func loadAndSeparateEntities(named name: String, material: RealityKit.Material) throws -> (nonEarx: ModelEntity, earxEntities: [Entity]) {
         // Load the entire entity hierarchy from your USD file.
         let rootEntity = try Entity.load(named: name)
         
         // Create a container for all non-"earx" model entities.
         let nonEarxContainer = ModelEntity()
-        nonEarxContainer.name = "NonEarxContainer"
+        nonEarxContainer.name = "EarringLeft"
         
         // Array to hold earx placement containers.
         var earxEntities: [Entity] = []
@@ -137,7 +196,6 @@ class EarringsModel: ObservableObject {
             if entity.components.has(ModelComponent.self),
                let modelEntity = entity as? ModelEntity {
                 print(" -> \(entity.name) has a ModelComponent. Adding to nonEarxContainer.")
-                let material = MaterialManager.metallicMaterial(color: .yellow)
                 modelEntity.setMaterial(material)
                 nonEarxContainer.addChild(modelEntity)
             }
@@ -146,6 +204,7 @@ class EarringsModel: ObservableObject {
             let childrenCopy = Array(entity.children)
             for (index, child) in childrenCopy.enumerated() {
                 print("   Processing child \(index): \(child.name) of \(entity.name)")
+    
                 process(entity: child)
             }
         }
@@ -155,7 +214,7 @@ class EarringsModel: ObservableObject {
     }
     
     /// Creates a sphere ModelEntity with a given radius and color.
-    func createSphereEntity(radius: Float = 0.005, color: UIColor = .red) -> ModelEntity {
+    private func createSphereEntity(radius: Float = 0.005, color: UIColor = .red) -> ModelEntity {
         let sphereMesh = MeshResource.generateSphere(radius: radius)
         let sphereMaterial = SimpleMaterial(color: color, isMetallic: false)
         let sphereEntity = ModelEntity(mesh: sphereMesh, materials: [sphereMaterial])
@@ -216,49 +275,73 @@ class EarringsModel: ObservableObject {
     }
     
     func replaceAccessory(_ entity: ModelEntity) {
-        if let model = selectedModel, let assetModel = loadAssetModel(model) {
-            placeEntity(entity, assetModel)
+        //activePlacement = entity
+        if let activePlacement = activePlacement {
+            let clone = activePlacement.clone(recursive: true)
+            clone.name = "\(activePlacement.id)_accessory"
+            placeEntity(entity, clone)
         }
     }
     
     private func placeEntity(_ entity: Entity, _ modelEntity: ModelEntity, mirror: Bool = false) {
-        // Get the first child model entity.
         guard let child = entity as? ModelEntity, let parent = child.parent else { return }
         
-        // Capture the child's world transform.
+        // Compute the placement transform from the child.
         let worldTransform = Transform(matrix: child.transformMatrix(relativeTo: nil))
-        
-        // Convert the world transform into the parent's (entity's) local space.
         let localTransform = entity.convert(transform: worldTransform, from: nil)
         
-        modelEntity.transform = localTransform
-        // rotate -90 deg in x
-        modelEntity.orientation = simd_quatf(angle: .pi/2, axis: SIMD3<Float>(1, 0, 0))
-        parent.children.forEach { (child) in
-            if !child.name.contains("placement") {
-                child.removeFromParent()
-            }
-        }
-        // Add the modelEntity as a child of the parent entity.
-        parent.addChild(modelEntity)
-
-    }
-    
-    func loadAssetModel(_ model: AssetModel) -> ModelEntity? {
-        guard let url = Bundle.main.url(forResource: model.sceneName, withExtension: "usdc", subdirectory: "Art.scnassets/Accessories") else {
-            fatalError("Unable to locate the head model in the bundle")
-        }
-        guard let textureName = model.textures.values.first, let geometryName = model.objNames.first else {return nil}
-        // Load the head entity.
-        if let entity = try? Entity.load(contentsOf: url),
-           let modelEntity = entity.findEntity(named: model.objNames.first!)?.children.first as? ModelEntity {
-            
-            let material = MaterialManager.createPBRMaterial(texture: textureName, normal: model.normal?.values.first, doubleSided: model.doubleSided?.first != nil ? true : false)
-            modelEntity.setMaterial(material)
-            modelEntity.name = model.objNames.first!
-            return modelEntity
+        // Preserve the asset’s original scale.
+        let originalScale = modelEntity.transform.scale
+        var newScale = originalScale
+        if parent.parent?.name == "EarringLeft" {
+            newScale.x = -abs(newScale.x)
         }
         
-        return nil
+        // Build the new transform using the placement's translation and rotation with the asset's scale.
+        let newTransform = Transform(scale: newScale, rotation: localTransform.rotation, translation: localTransform.translation)
+        modelEntity.transform = newTransform
+        
+        // Compute orientation: -90° about x plus a 180° about y if on the left earring.
+        let rotationX = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
+        let rotationY = (parent.parent?.name == "EarringLeft") ? simd_quatf(angle: .pi, axis: SIMD3<Float>(0, 1, 0)) : simd_quatf(angle: 0, axis: SIMD3<Float>(0, 0, 0))
+        modelEntity.orientation = rotationX * rotationY
+        
+        // Clean up non-placement children.
+        parent.children.forEach { if !$0.name.contains("placement") { $0.removeFromParent() } }
+        
+        // Optionally update material on the original child.
+        child.model?.materials = [MaterialManager.transparentMaterial()]
+        if let assetID = selectedAccessoryModel?.id {
+                modelEntity.name = "\(assetID)_accessory"
+            }
+        parent.addChild(modelEntity)
+        
+        // Mirror accessory on the corresponding earring.
+        let sourceEarring = (entity.parent?.parent?.name == "EarringLeft") ? earringLeft : earringRight
+        if let correspondingEntity = sourceEarring?.findEntity(named: entity.name) {
+            correspondingEntity.children.forEach {
+                if !$0.name.contains("placement") {
+                    $0.removeFromParent()
+                } else if let childModel = $0 as? ModelEntity {
+                    childModel.model?.materials = [MaterialManager.transparentMaterial()]
+                }
+            }
+            let accessoryClone = modelEntity.clone(recursive: true)
+            let originalWorldMatrix = modelEntity.transformMatrix(relativeTo: nil)
+            let mirrorMatrix = simd_float4x4(diagonal: SIMD4<Float>(-1, 1, 1, 1))
+            let mirroredWorldMatrix = mirrorMatrix * originalWorldMatrix
+            let mirroredWorldTransform = Transform(matrix: mirroredWorldMatrix)
+            let cloneLocalTransform = correspondingEntity.convert(transform: mirroredWorldTransform, from: nil)
+            accessoryClone.transform = cloneLocalTransform
+            correspondingEntity.addChild(accessoryClone)
+        }
+    }
+    
+    private func mirrorTransformX(_ transform: Transform) -> Transform {
+        // Reflection matrix along X axis.
+        let mirrorMatrix = simd_float4x4(diagonal: SIMD4<Float>(-1, 1, 1, 1))
+        // Apply the mirror on both sides of the original transform.
+        let mirroredMatrix = mirrorMatrix * transform.matrix * mirrorMatrix
+        return Transform(matrix: mirroredMatrix)
     }
 }

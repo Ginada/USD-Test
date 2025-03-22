@@ -22,9 +22,9 @@ struct AssetModel: AssetStyle, Codable, Hashable {
     let sceneName: String
     let objNames: [String]
     let textures: [String : String]
-    let opacity: [String : CGFloat]?
-    let roughness: [String : CGFloat]?
-    let metalness: [String : CGFloat]?
+    let opacity: [String : Float]?
+    let roughness: [String : Float]?
+    let metalness: [String : Float]?
     let normal: [String : String]?
     let doubleSided: [String]?
     var scale: Float? = nil
@@ -60,11 +60,13 @@ extension AssetModel {
     }
 
     static var mockEarringsData: [AssetModel] {
-        let earring1 = AssetModel(id: "12", type: .earrings, thumbName: "thumb_hair_access_164", thumbUrl: "", sceneName: "Earring_ring_1", objNames: ["Earring_ring_1"], textures: ["Earring_ring_1": "piercing_1_gold_color.jpg"], opacity: nil, roughness: ["Earring_ring_1": 0.2], metalness: ["Earring_ring_1": 0.8], normal: [:], doubleSided: nil, scale: 1, unlockType: .likes, pointLevel: .exclusive, unlockAmount: 15)
+        let earring0 = AssetModel(id: "9", type: .earrings, thumbName: "thumb_hair_access_163", thumbUrl: "", sceneName: "earring_hollow_loop", objNames: ["earring_hollow_loop"], textures: ["earring_hollow_loop": "piercing_1_gold_color.jpg"], opacity: nil, roughness: ["earring_hollow_loop": 0.2], metalness: ["earring_hollow_loop": 0.8], normal: [:], doubleSided: nil, scale: 1, unlockType: .likes, pointLevel: .exclusive, unlockAmount: 15)
+        let earring = AssetModel(id: "10", type: .earrings, thumbName: "thumb_hair_access_163", thumbUrl: "", sceneName: "earring_circle", objNames: ["earring_circle"], textures: ["earring_circle": "piercing_1_gold_color.jpg"], opacity: nil, roughness: ["earring_circle": 0.2], metalness: ["earring_circle": 0.8], normal: [:], doubleSided: nil, scale: 1, unlockType: .likes, pointLevel: .exclusive, unlockAmount: 15)
+        let earring1 = AssetModel(id: "12", type: .earrings, thumbName: "thumb_hair_access_164", thumbUrl: "", sceneName: "earring_ornament", objNames: ["earring_ornament"], textures: ["earring_ornament": "piercing_1_gold_color.jpg"], opacity: nil, roughness: ["earring_ornament": 0.2], metalness: ["earring_ornament": 0.8], normal: [:], doubleSided: nil, scale: 1, unlockType: .likes, pointLevel: .exclusive, unlockAmount: 15)
         let earring2 = AssetModel(id: "22", type: .earrings, thumbName: "thumb_hair_access_277", thumbUrl: "", sceneName: "Earring_2", objNames: ["Earring_2"], textures: ["Earring_2": "piercing_1_gold_color.jpg"], opacity: nil, roughness: ["Earring_2": 0.2], metalness: ["Earring_2": 0.8], normal: [:], doubleSided: nil, scale: 1, unlockType: .coins, pointLevel: .basic, unlockAmount: 3)
         let earring3 = AssetModel(id: "32", type: .earrings, thumbName: "thumb_hair_access_32", thumbUrl: "", sceneName: "Earring_3", objNames: ["Earring_3"], textures: ["Earring_3": "piercing_1_gold_color.jpg"], opacity: nil, roughness: ["Earring_3": 0.2], metalness: ["Earring_3": 0.8], normal: [:], doubleSided: nil, scale: 1, unlockType: .ad, pointLevel: .premium, unlockAmount: 6)
         
-        return [earring1, earring2, earring3]
+        return [earring0, earring, earring1, earring2, earring3]
     }
 
     static var mockNecklaceData: [AssetModel] {
