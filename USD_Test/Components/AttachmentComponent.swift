@@ -10,7 +10,7 @@ import RealityKit
 public struct Attachment {
     var jointIndices: [Int]
     var offset: simd_float4x4
-    var attachmentEntity: ModelEntity
+    var attachmentEntity: Entity
 }
 
 public struct AttachmentComponent: Component {

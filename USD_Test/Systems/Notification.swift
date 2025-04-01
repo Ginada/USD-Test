@@ -9,4 +9,6 @@ import Foundation
 
 extension Notification.Name {
     static let accessoryTapped = Notification.Name("accessoryTapped")
+    static let necklaceAccessoryTapped = Notification.Name("necklaceAcessoryTapped")
+    
 }

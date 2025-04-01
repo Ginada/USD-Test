@@ -191,7 +191,7 @@ extension MakeupStyle {
     static func mockedLashesData() -> [any AssetStyle] {
         var styles = [MakeupStyle]()
 
-        let material = MakeupMat(id: "12", color: "#F3C58E", finish: .metallic)
+        let material = MakeupMat(id: "12", color: "#3b3db3", finish: .dewy)
         
         let asset1 = MakeupAsset(id: "asset1", type: .lashes, mask: 1, morphValue: nil)
         let layer = MakeupLayer(asset: asset1, order: 0, blur: 0, transparency: 1, material: material, paletteType: .shadow, paletteIndex: 0)

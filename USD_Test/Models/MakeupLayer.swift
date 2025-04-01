@@ -93,21 +93,21 @@ protocol Layer: Codable, Equatable, Identifiable {
 extension MakeupLayer {
     
     static var mockedData: [MakeupLayer] {
-        let material = MakeupMat(id: "1", color: "#2E996D", finish: .dewy)
-        let asset1 = MakeupAsset(id: "asset1", type: .eyeshadow, mask: 1, morphValue: nil)
-        let layer = MakeupLayer(asset: asset1, order: 1, blur: 0, transparency: 0.5, material: material, paletteType: .shadow)
+        let material = MakeupMat(id: "1", color: "2E996D", finish: .metallic)
+        let asset1 = MakeupAsset(id: "1", type: .eyeshadow, mask: 1, morphValue: nil)
+        let layer = MakeupLayer(asset: asset1, order: 0, blur: 0, transparency: 1, material: material, paletteType: .shadow)
         
-        let material2 = MakeupMat(id: "2", color: "#3474C0", finish: .metallic)
+        let material2 = MakeupMat(id: "2", color: "3474C0", finish: .satin)
         let asset2 = MakeupAsset(id: "asset2", type: .eyeshadow, mask: 3, morphValue: nil)
-        let layer2 = MakeupLayer(asset: asset2, order: 1, blur: 0, transparency: 0.7, material: material2, paletteType: .mid)
+        let layer2 = MakeupLayer(asset: asset2, order: 1, blur: 0, transparency: 1, material: material2, paletteType: .mid)
         
-        let material3 = MakeupMat(id: "13", color: "#C5AC72", finish: .cream)
+        let material3 = MakeupMat(id: "1", color: "#e7be9e", finish: .matte)
         let asset3 = MakeupAsset(id: "asset3", type: .foundation, mask: 2, morphValue: nil)
-        let layer3 = MakeupLayer(asset: asset3, order: 1, blur: 0, transparency: 0.8, material: material3, paletteType: .highlight)
+        let layer3 = MakeupLayer(asset: asset3, order: 0, blur: 0, transparency: 0.8, material: material3, paletteType: .highlight)
         
-        let material4 = MakeupMat(id: "14", color: "#DCABFC", finish: .metallic)
-        let asset4 = MakeupAsset(id: "asset4", type: .eyeliner, mask: 9, morphValue: nil)
-        let layer4 = MakeupLayer(asset: asset4, order: 1, blur: 0, transparency: 0.8, material: material4, paletteType: .highlight)
+        let material4 = MakeupMat(id: "14", color: "#0d0e0d", finish: .metallic)
+        let asset4 = MakeupAsset(id: "asset4", type: .eyeliner, mask: 14, morphValue: nil)
+        let layer4 = MakeupLayer(asset: asset4, order: 0, blur: 2, transparency: 1, material: material4, paletteType: .highlight)
         
         return [layer, layer2, layer3, layer4]
     }

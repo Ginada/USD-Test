@@ -15,6 +15,7 @@ import UIKit
 //
 
 import UIKit
+import RealityKit
 
 enum MakeupFinish: String, Codable, CaseIterable {
     
@@ -111,7 +112,7 @@ enum MakeupFinish: String, Codable, CaseIterable {
         }
     }
     
-    func metalness(type: MakeupType) -> Any {
+    func metalness(type: MakeupType) -> UIColor {
         if type == .glitter {
             return #colorLiteral(red: 0.8039215803, green: 0.8039215803, blue: 0.8039215803, alpha: 1)
         }
@@ -210,7 +211,7 @@ enum MakeupFinish: String, Codable, CaseIterable {
         if type == .sculptHighlight || type == .sculptShadow || type == .rouge {
             switch self {
             case .satin, .velvet, .shimmer, .metallic:
-                return UIImage(named: "Art.scnassets/textures/makeup/eyeshadow_roughness_medium.jpg")!
+                return "eyeshadow_roughness_medium"
             default:
                 break
             }
@@ -219,13 +220,13 @@ enum MakeupFinish: String, Codable, CaseIterable {
         if type == .lips || type == .lipliner {
             switch self {
             case .glitterFlakes:
-                return UIImage(named:"Art.scnassets/textures/makeup/glitter_flakes_roughness.jpg")!
+                return "glitter_flakes_roughness"
             case .shinygloss, .metallicgloss:
                 return #colorLiteral(red: 0.169983089, green: 0.1721585691, blue: 0.172080338, alpha: 1)
             case .gloss:
                 return #colorLiteral(red: 0, green: 0, blue: 0, alpha: 1)
             case .satin, .velvet, .metallic, .shimmer:
-                return UIImage(named: "Art.scnassets/textures/makeup/face_roughness.jpg")!
+                return "face_roughness"
             default:
                 return #colorLiteral(red: 0.822939992, green: 0.8180488348, blue: 0.8267002702, alpha: 1)
             }
@@ -233,7 +234,7 @@ enum MakeupFinish: String, Codable, CaseIterable {
         if type == .foundation || type == .paint {
             switch self {
             case .glitterFlakes:
-                return UIImage(named: "Art.scnassets/textures/makeup/glitter_flakes_roughness.jpg")!
+                return "glitter_flakes_roughness"
             case .matte:
                 return #colorLiteral(red: 0.7173742652, green: 0.7356892228, blue: 0.7602406144, alpha: 1)
             case .ultraMatte:
@@ -259,11 +260,11 @@ enum MakeupFinish: String, Codable, CaseIterable {
         }
         switch self {
         case .glitterFlakes:
-            return UIImage(named: "Art.scnassets/textures/makeup/glitter_flakes_roughness.jpg")!
+            return "glitter_flakes_roughness"
         case .dewy:
             return #colorLiteral(red: 0.4474017024, green: 0.4648455977, blue: 0.4644528031, alpha: 1)
         case .shimmer, .velvet, .satin:
-            return UIImage(named: "Art.scnassets/textures/makeup/eyeshadow_roughness_shiny.jpg")!
+            return "eyeshadow_roughness_shiny"
         case .metallic:
             return #colorLiteral(red: 0.2064524889, green: 0.2117617428, blue: 0.2116222084, alpha: 1)
         case .glitter:
@@ -346,15 +347,15 @@ enum MakeupFinish: String, Codable, CaseIterable {
     func normal(type: MakeupType, dimples: Bool) -> String {
        
         if type == .glitter {
-            return "Art.scnassets/textures/makeup/glitter_nmp.jpg"
+            return "glitter_nmp"
         }
         if type == .foundation || type == .sculptHighlight || type == .sculptShadow || type == .rouge || type == .paint{
             switch self {
             case .satin, .metallic, .shimmer, .velvet:
                 if dimples {
-                    return "Art.scnassets/textures/makeup/makeup_normal_dimples.jpg"
+                    return "makeup_normal_dimples"
                 }
-                return "Art.scnassets/textures/makeup/makeup_normal.jpg"
+                return "makeup_normal"
             default:
                 break
             }
@@ -362,35 +363,35 @@ enum MakeupFinish: String, Codable, CaseIterable {
          switch self {
          case .matte:
              if dimples {
-                 return "Art.scnassets/textures/makeup/makeup_normal_dimples.jpg"
+                 return "makeup_normal_dimples"
              }
-            return "Art.scnassets/textures/makeup/makeup_normal.jpg"
+            return "makeup_normal"
          case .glitterFlakes:
-             return "Art.scnassets/textures/makeup/glitter_flakes_normal.jpg"
+             return "glitter_flakes_normal"
          case .shimmer, .satin, .velvet:
             if type == .lips || type == .lipliner {
                 if dimples {
-                    return "Art.scnassets/textures/makeup/makeup_normal_dimples.jpg"
+                    return "makeup_normal_dimples"
                 }
-                return "Art.scnassets/textures/makeup/makeup_normal.jpg"
+                return "makeup_normal"
             }
-            return "Art.scnassets/textures/makeup/skin_normal2.jpg"
+            return "skin_normal2"
          case .metallic, .glitter:
             if type == .lips || type == .lipliner {
                 if dimples {
-                    return "Art.scnassets/textures/makeup/makeup_normal_dimples.jpg"
+                    return "makeup_normal_dimples"
                 }
-                return "Art.scnassets/textures/makeup/makeup_normal.jpg"
+                return "makeup_normal"
             }
             if type == .eyeshadow || type == .eyeliner {
-                return "Art.scnassets/textures/makeup/eye_sparcle_normal.jpg"
+                return "eye_sparcle_normal"
             }
-            return "Art.scnassets/textures/makeup/skin_normal2.jpg"
+            return "skin_normal2"
          default:
              if dimples {
-                 return "Art.scnassets/textures/makeup/makeup_normal_dimples.jpg"
+                 return "makeup_normal_dimples"
              }
-            return "Art.scnassets/textures/makeup/makeup_normal.jpg"
+            return "makeup_normal"
         }
     }
     

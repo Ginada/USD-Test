@@ -70,7 +70,7 @@ extension AssetModel {
     }
 
     static var mockNecklaceData: [AssetModel] {
-        let necklace1 = AssetModel(id: "13", type: .necklace, thumbName: "thumb_crystal_36", thumbUrl: "", sceneName: "chain_1", objNames: ["chain_1"], textures: ["chain_1": "chain_1_gold.png"], opacity: nil, roughness: ["chain_1": 0.2], metalness: ["chain_1": 0.8], normal: ["chain_1": "chain_1_normal.jpg"], doubleSided: nil, scale: 1, unlockType: .coins, pointLevel: .exclusive, unlockAmount: 20)
+        let necklace1 = AssetModel(id: "13", type: .necklace, thumbName: "thumb_crystal_36", thumbUrl: "", sceneName: "chain_6", objNames: ["chain_6"], textures: ["chain_6": "chain_1_gold.png"], opacity: nil, roughness: ["chain_6": 0.2], metalness: ["chain_6": 0.8], normal: ["chain_6": "chain_1_normal.jpg"], doubleSided: nil, scale: 1, unlockType: .coins, pointLevel: .exclusive, unlockAmount: 20)
         let necklace2 = AssetModel(id: "23", type: .necklace, thumbName: "thumb_crystal_36", thumbUrl: "", sceneName: "chain_1", objNames: ["chain_1"], textures: ["chain_1": "chain_1_gold.png"], opacity: nil, roughness: ["chain_1": 0.2], metalness: ["chain_1": 0.8], normal: ["chain_1": "chain_1_normal.jpg"], doubleSided: nil, scale: 1, unlockType: .coins, pointLevel: .exclusive, unlockAmount: 20)
         return [necklace1, necklace2]
     }

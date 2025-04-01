@@ -7,65 +7,66 @@
 import RealityKit
 import Foundation
 
-class BrowModel: ObservableObject {
+class BrowModel: AvatarComponent {
     
-    var browArmature: ModelEntity
+    override init() {
+        let material = MaterialManager.createPBRMaterial(texture: "brows_reg", normal: nil)
+        super.init(resourceName: "model_brows",
+                       targetEntityName: "Armature",
+                       material: material,
+                       orientation: simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0)))
+            
+        }
     
-    init() {
-        // Load the brow model.
-        browArmature = BrowModel.createModel()
-       
+    func updateBrows(layer: MakeupLayer){
+        guard let makeupMat = layer.material else { return }
+        let type = layer.asset.type
+        
+        // Prepare adjusted color.
+        let adjustedColor = AvatarComponent.adjustedColor(from: makeupMat)
+        let mask = layer.maskImage + "_reg"
+        let normalMapName = makeupMat.finish.normal(type: type, dimples: false)
+        
+        let makeupEntity = armature.first!
+        
+        // Calculate material parameters.
+        let opacity: Float = (makeupMat.isClear ?? false)
+            ? ((layer.transparency ?? 1.0) / 2)
+            : (layer.transparency ?? 0.7)
+        
+        let (roughnessValue, roughnessTexture) = AvatarComponent.extractRoughness(from: makeupMat, type: type)
+        let metalnessValue: Float = Float(makeupMat.finish.metalness(type: type).blueValue)
+        
+        // Create and assign the new material.
+        let newMaterial = MaterialManager.makeupMaterial(
+            color: adjustedColor,
+            normal: normalMapName,
+            opacity: opacity,
+            mask: mask,
+            roughness: roughnessValue,
+            roughnessTexture: roughnessTexture,
+            metalness: metalnessValue
+        )
+        makeupEntity.setMaterial(newMaterial)
     }
     
-    static func createModel() -> ModelEntity {
-        guard let url = Bundle.main.url(forResource: "model_brows", withExtension: "usdc", subdirectory: "Art.scnassets/USD") else {
-            fatalError("Unable to locate the head model in the bundle")
+    override func updateShape(with shape: FaceShape, weight: CGFloat) {
+        armature.forEach {node in
+            guard var blendShape = node.components[BlendShapeWeightsComponent.self] else { return }
+            var currentWeights = blendShape.weightSet[0].weights
+            
+            // Determine the blendshape index based on the node's name.
+            let blendIndex: Int
+            guard let index = shape.browIndex else { return }
+            blendIndex = index
+            
+            guard currentWeights.indices.contains(blendIndex) else { return }
+            currentWeights[blendIndex] = Float(weight)
+            
+            // Update the blendshape component.
+            blendShape.weightSet[0].weights = currentWeights
+            node.components.set(blendShape)
         }
-        
-        // Load the head entity.
-        let entity = try! Entity.load(contentsOf: url)
-        
-        // Extract the "Armature" ModelEntity from the head entity.
-        guard let armature = entity.findEntity(named: "Armature") as? ModelEntity else {
-            fatalError("Head Armature not found")
-        }
-        
-        // Create and apply the PBR material.
-        let pbrMaterial = MaterialManager.createPBRMaterial(texture: "brows_reg", normal: nil)
-        
-        armature.setMaterial(pbrMaterial)
-        armature.orientation = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
-        
-        // Adjust blendshape weights on the head armature.
-//        if var headBlendShape = headArmature.components[BlendShapeWeightsComponent.self] {
-//            var currentWeights = headBlendShape.weightSet[0].weights
-//            if currentWeights.count >= 4 {
-//                currentWeights[0] = 0.8
-//                currentWeights[1] = 0.8
-//                currentWeights[2] = 0.8
-//                currentWeights[3] = 0.8
-//            }
-//            if currentWeights.count > 20 { currentWeights[20] = 0.8 }
-//            if currentWeights.count > 29 { currentWeights[29] = 0.8 }
-//            if currentWeights.count > 32 { currentWeights[32] = 0.8 }
-//            headBlendShape.weightSet[0].weights = currentWeights
-//            headArmature.components.set(headBlendShape)
-//        }
-        
-        // Optionally, play the first available animation.
-//        if let animationResource = headArmature.availableAnimations.first {
-//            let repeatedAnimation = animationResource.repeat()
-//            headArmature.playAnimation(repeatedAnimation, transitionDuration: 0.2, startsPaused: false)
-//        } else {
-//            print("No animation found on headArmature")
-//        }
-        
-        return armature
     }
     
-    func playAnimation(transitionDuration: TimeInterval = 0.3) {
-        if let clip = AnimationLibrary.shared.animation(for: "idle") {
-            browArmature.playAnimation(clip, transitionDuration: transitionDuration, startsPaused: false)
-        }
-    }
 }

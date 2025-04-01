@@ -8,12 +8,19 @@
 import RealityKit
 import Foundation
 
-class HeadModel: ObservableObject {
-    let headArmature: ModelEntity
+class HeadModel: AvatarComponent {
     
-    init() {
-        self.headArmature = HeadModel.createModel()
-    }
+    override init() {
+        let material = MaterialManager.createPBRMaterial(texture: "Head_medium", normal: "Head_Normal", roughnessTexture: "Head_Roughness")
+        //let material = MaterialManager.transparentMaterial()
+        super.init(resourceName: "headModel_anim",
+                       targetEntityName: "Armature",
+                       material: material,
+                       orientation: simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0)))
+        
+            
+        }
+    
     /// Loads the head model from the bundle, sets it up, and returns the head Armature ModelEntity.
     static func createModel() -> ModelEntity {
         // Locate the head model file.
@@ -31,7 +38,7 @@ class HeadModel: ObservableObject {
         
         // Create and apply the PBR material.
         let pbrMaterial = MaterialManager.createPBRMaterial(texture: "Head_medium", normal: "Head_Normal")
-        //let pbrMaterial = MaterialManager.transparentMaterial()
+       // let pbrMaterial = MaterialManager.transparentMaterial()
         headArmature.setMaterial(pbrMaterial)
         
         // Adjust blendshape weights on the head armature.
@@ -52,20 +59,6 @@ class HeadModel: ObservableObject {
         
         headArmature.orientation = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
         
-        // Optionally, play the first available animation.
-//        if let animationResource = headArmature.availableAnimations.first {
-//            let repeatedAnimation = animationResource.repeat()
-//            headArmature.playAnimation(repeatedAnimation, transitionDuration: 0.2, startsPaused: false)
-//        } else {
-//            print("No animation found on headArmature")
-//        }
-        
         return headArmature
     }
-    
-    func playAnimation(transitionDuration: TimeInterval = 0.3) {
-            if let clip = AnimationLibrary.shared.animation(for: "idle") {
-                headArmature.playAnimation(clip, transitionDuration: transitionDuration, startsPaused: false)
-            }
-        }
 }

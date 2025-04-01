@@ -12,7 +12,7 @@ import UIKit
 
 class MaterialManager {
     
-    static func createPBRMaterial(texture: String, normal: String?, metalness: Float = 0.0, roughness: Float = 0.5, doubleSided: Bool = false) -> PhysicallyBasedMaterial {
+    static func createPBRMaterial(texture: String, normal: String?, metalness: Float = 0.0, roughness: Float = 0.5, doubleSided: Bool = false, roughnessTexture: String? = nil) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         
         // Load and assign the base color texture.
@@ -39,22 +39,40 @@ class MaterialManager {
                 material.normal = PhysicallyBasedMaterial.Normal(texture: normalTexture)
             } else {
                 // Fallback: if normal map fails, leave it unassigned (or provide a default if desired).
-                material.normal = .init(texture: nil)
-                print("Error: Unable to load normal texture named \(normal).")
+                //material.normal = .init(texture: nil)
+               // print("Error: Unable to load normal texture named \(normal).")
             }
+        }
+        if let roughnessTexture = roughnessTexture {
+            // Load and assign the roughness texture.
+            if let roughnessResource = try? TextureResource.load(named: roughnessTexture) {
+                let roughnessTexture = MaterialParameters.Texture(roughnessResource)
+                material.roughness = PhysicallyBasedMaterial.Roughness(texture: roughnessTexture)
+            } else {
+                // Fallback: if roughness map fails, leave it unassigned (or provide a default if desired).
+                //material.roughness = .init(texture: nil)
+                print("Error: Unable to load roughness texture named \(roughnessTexture).")
+            }
+        } else {
+            material.roughness = PhysicallyBasedMaterial.Roughness(floatLiteral: roughness)
+        }
+        
+        if doubleSided {
+            material.faceCulling = .none
         }
         
         material.metallic = PhysicallyBasedMaterial.Metallic(floatLiteral: metalness)
-        material.roughness = PhysicallyBasedMaterial.Roughness(floatLiteral: roughness)
+       
         
         return material
     }
     
     static func transparentMaterial() -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
-        material.baseColor = PhysicallyBasedMaterial.BaseColor(tint: .clear, texture: nil)
-        material.blending = .transparent(opacity: 0.01)
-        material.opacityThreshold = 0.0 // IMPORTANT
+        material.baseColor = PhysicallyBasedMaterial.BaseColor(tint: .black, texture: nil)
+        material.blending = .transparent(opacity: 0.2)
+        material.roughness = 0.1
+        material.opacityThreshold = 0.1 // IMPORTANT
         return material
     }
     
@@ -66,8 +84,38 @@ class MaterialManager {
         material.faceCulling = .none
         return material
     }
+    
+    static func makeupMaterial(color: UIColor, normal: String, opacity: Float, mask: String, roughness: Float, roughnessTexture: String?, metalness: Float) -> PhysicallyBasedMaterial {
+        var material = PhysicallyBasedMaterial()
+        if let opacityResource = try? TextureResource.load(named: mask) {
+            let opacityTexture = MaterialParameters.Texture(opacityResource)
+            let opacityValue = PhysicallyBasedMaterial.Opacity(scale: 1.0, texture: opacityTexture)
+            material.blending = .transparent(opacity: opacityValue)
+        } else {
+            material.blending = .opaque
+        }
+        material.baseColor = PhysicallyBasedMaterial.BaseColor(tint: color, texture: nil)
+        //material.blending = .transparent(opacity: 0.01)
+        material.opacityThreshold = 0.0 // IMPORTANT
+        if let roughnessTexture = roughnessTexture {
+            if let roughnessResource = try? TextureResource.load(named: roughnessTexture) {
+                let roughnessTexture = MaterialParameters.Texture(roughnessResource)
+                material.roughness = PhysicallyBasedMaterial.Roughness(texture: roughnessTexture)
+            } else {
+                print("Error: Unable to load roughness texture named \(roughnessTexture).")
+            }
+        } else {
+            material.roughness = PhysicallyBasedMaterial.Roughness(floatLiteral: roughness)
+        }
+            material.metallic = PhysicallyBasedMaterial.Metallic(floatLiteral: metalness)
+            if let normalResource = try? TextureResource.load(named: normal) {
+                let normalTexture = MaterialParameters.Texture(normalResource)
+                material.normal = PhysicallyBasedMaterial.Normal(texture: normalTexture)
+            }
+        return material
+    }
 
-    static func createCustomFaceMaterial(color: UIColor, normal: String, opacity: String) -> CustomMaterial? {
+    static func createCustomFaceMaterial(color: UIColor, normal: String, opacity: Float, mask: String) -> CustomMaterial? {
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Error creating default Metal device.")
         }
@@ -76,18 +124,16 @@ class MaterialManager {
         }
         
         // Create a base physically based material and configure its properties.
-        var baseMaterial = MaterialManager.createPBRMaterial(color: color, normal: normal, opacity: opacity)
+        var baseMaterial = MaterialManager.createPBRMaterial(color: color, normal: normal, opacity: opacity, mask: mask)
         baseMaterial.writesDepth = false
+        let sheenColor = PhysicallyBasedMaterial.Color.black
+        baseMaterial.sheen = .init(tint:sheenColor)
+        baseMaterial.roughness = PhysicallyBasedMaterial.Roughness(0.0)
+        //baseMaterial.blending = .transparent(opacity: 0.01)
+        baseMaterial.opacityThreshold = 0.1
         // Load your opacity texture.
-        var opacityTexture: TextureResource? = nil
-        if let resource = try? TextureResource.load(named: opacity) {
-            opacityTexture = resource
-        } else {
-            print("Error: Unable to load opacity texture named \(opacity).")
-        }
         
         // Create a custom binding for your opacity: this could be a uniform that you pass into your shader.
-        let opacityScale: Float = 1.0
         
         // Create your surface shader. (Assume you have a Metal shader function named "mySurfaceShader" in your .metal file.)
         let surfaceShader = CustomMaterial.SurfaceShader(named: "customMakeupShader", in: library)
@@ -138,7 +184,7 @@ class MaterialManager {
             }
         }
     
-    static func createPBRMaterial(color: UIColor, normal: String, opacity: String) -> PhysicallyBasedMaterial {
+    static func createPBRMaterial(color: UIColor, normal: String, opacity: Float?, mask: String) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         
         // Set the base color using a solid color (with no texture).
@@ -150,7 +196,7 @@ class MaterialManager {
             material.normal = PhysicallyBasedMaterial.Normal(texture: normalTexture)
             // Apply tiling (repeat) on the primary texture coordinates.
             // This affects all textures using the primary UV channel (in this case, the normal map).
-            material.secondaryTextureCoordinateTransform = .init(scale: SIMD2<Float>(4.0, 4.0))
+            material.secondaryTextureCoordinateTransform = .init(scale: SIMD2<Float>(1.0, 1.0))
         } else {
             material.normal = .init(texture: nil)
             print("Error: Unable to load normal texture named \(normal).")
@@ -161,14 +207,14 @@ class MaterialManager {
         material.roughness = PhysicallyBasedMaterial.Roughness(0.3)
         
         // Load and assign the opacity texture.
-        if let opacityResource = try? TextureResource.load(named: opacity) {
+        if let opacityResource = try? TextureResource.load(named: mask) {
             let opacityTexture = MaterialParameters.Texture(opacityResource)
-            let opacityValue = PhysicallyBasedMaterial.Opacity(scale: 1, texture: opacityTexture)
+            let opacityValue = PhysicallyBasedMaterial.Opacity(scale: opacity ?? 1.0, texture: opacityTexture)
             material.blending = .transparent(opacity: opacityValue)
             material.emissiveColor = .init(texture: opacityTexture)
         } else {
             material.blending = .opaque
-            print("Error: Unable to load opacity texture named \(opacity).")
+            print("Error: Unable to load opacity texture named \(mask).")
         }
         
         return material
