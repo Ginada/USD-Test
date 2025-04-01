@@ -27,9 +27,7 @@ class FaceModel: BaseModel, ObservableObject {
         // Load the base face model from your USDZ file.
         // (Ensure that loadModelEntity(...) is implemented in BaseModel or elsewhere.)
         let baseFaceArmature = loadModelEntity(named: "Armature",
-                                               fromResource: "model_makeup",
-                                               withExtension: "usdc",
-                                               inSubdirectory: "Art.scnassets/USD")
+                                               fromResource: "model_makeup")
         // Adjust orientation as needed.
         baseFaceArmature.orientation = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
         self.baseLayer = baseFaceArmature

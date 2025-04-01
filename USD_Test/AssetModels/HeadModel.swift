@@ -24,12 +24,9 @@ class HeadModel: AvatarComponent {
     /// Loads the head model from the bundle, sets it up, and returns the head Armature ModelEntity.
     static func createModel() -> ModelEntity {
         // Locate the head model file.
-        guard let headURL = Bundle.main.url(forResource: "headModel_anim", withExtension: "usdc", subdirectory: "Art.scnassets/USD") else {
-            fatalError("Unable to locate the head model in the bundle")
-        }
-        
+    
         // Load the head entity.
-        let headEntity = try! Entity.load(contentsOf: headURL)
+        let headEntity = try! Entity.load(named: "headModel_anim")
         
         // Extract the "Armature" ModelEntity from the head entity.
         guard let headArmature = headEntity.findEntity(named: "Armature") as? ModelEntity else {

@@ -45,13 +45,7 @@ class EyesModel: BaseModel, ObservableObject {
         let innerMaterial = MaterialManager.createPBRMaterial(texture: "Eyes_BaseColor_amber", normal: nil)
         let clearMaterial = MaterialManager.transparentMaterial()
         
-        guard let url = Bundle.main.url(forResource: name,
-                                        withExtension: "usdc",
-                                        subdirectory: "Art.scnassets/USD") else {
-            fatalError("Unable to locate resource \(name).usdc in Art.scnassets/USD")
-        }
-        
-        let rootEntity = try! Entity.load(contentsOf: url)
+        let rootEntity = try! Entity.load(named: name)
         
         // Common transform offset for all eyes.
         let eyeOffset = Transform(

@@ -12,15 +12,12 @@ class AvatarComponent: ObservableObject {
 
     /// Loads a ModelEntity (armature) from a USD file and applies the given material and orientation.
     init(resourceName: String,
-         fileExtension: String = "usdc",
-         subdirectory: String = "Art.scnassets/USD",
          targetEntityName: String = "Armature",
          material: RealityKit.Material? = nil,
          orientation: simd_quatf? = nil) {
-        guard let url = Bundle.main.url(forResource: resourceName, withExtension: fileExtension, subdirectory: subdirectory) else {
-            fatalError("Resource \(resourceName).\(fileExtension) not found in \(subdirectory)")
+        guard let rootEntity = try? Entity.load(named: resourceName) else {
+            return
         }
-        let rootEntity = try! Entity.load(contentsOf: url)
         guard let armatureEntity = rootEntity.findEntity(named: targetEntityName) as? ModelEntity else {
             fatalError("Target entity \(targetEntityName) not found in \(resourceName)")
         }

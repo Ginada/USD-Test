@@ -14,10 +14,7 @@ class EnvironmentModel: ObservableObject {
     var environment: ModelEntity?
     
     init() {
-        guard let url = Bundle.main.url(forResource: "background", withExtension: "usdc", subdirectory: "Art.scnassets/USD") else {
-            fatalError("Unable to locate the head model in the bundle")
-        }
-        let scene = try! Entity.load(contentsOf: url)
+        let scene = try! Entity.load(named: "background")
         guard let background = scene.findEntity(named: "Plane")?.children.first as? ModelEntity else {
             fatalError("Head Armature not found")
         }

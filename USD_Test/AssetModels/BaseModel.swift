@@ -69,12 +69,10 @@ class BaseModel {
     }
     
     func loadAssetModel(_ model: AssetModel) -> ModelEntity? {
-        guard let url = Bundle.main.url(forResource: model.sceneName, withExtension: "usdc", subdirectory: "Art.scnassets/Accessories") else {
-            fatalError("Unable to locate the head model in the bundle")
-        }
+       
         guard let textureName = model.textures.values.first, let geometryName = model.objNames.first else {return nil}
         // Load the head entity.
-        if let entity = try? Entity.load(contentsOf: url),
+        if let entity = try? Entity.load(named: model.sceneName),
            let modelEntity = entity.findEntity(named: model.objNames.first!)?.children.first as? ModelEntity {
             
             let material = MaterialManager.createPBRMaterial(texture: textureName, normal: model.normal?.values.first, doubleSided: true)
@@ -156,14 +154,9 @@ class BaseModel {
     
     func loadModelEntity(
         named targetName: String,
-        fromResource resourceName: String,
-        withExtension fileExtension: String,
-        inSubdirectory subdirectory: String
+        fromResource resourceName: String
     ) -> ModelEntity {
-        guard let url = Bundle.main.url(forResource: resourceName, withExtension: fileExtension, subdirectory: subdirectory) else {
-            fatalError("Unable to locate resource \(resourceName).\(fileExtension) in \(subdirectory)")
-        }
-        let rootEntity = try! Entity.load(contentsOf: url)
+        let rootEntity = try! Entity.load(named: resourceName)
         guard let targetEntity = rootEntity.findEntity(named: targetName) as? ModelEntity else {
             fatalError("Entity named \(targetName) not found")
         }
