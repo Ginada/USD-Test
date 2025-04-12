@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum UnlockType: String, Codable {
+public enum UnlockType: String, Codable {
     case likes
     case ad
     case coins
@@ -17,7 +17,7 @@ enum UnlockType: String, Codable {
     case tag
 }
 
-enum PointLevel: String, Codable, Hashable {
+public enum PointLevel: String, Codable, Hashable {
     case basic
     case premium
     case exclusive
@@ -46,7 +46,7 @@ struct MakeupStyle: AssetStyle, Codable, Equatable, Identifiable  {
     var boxUnlockableId: String?
 }
 
-protocol AssetStyle: Equatable, Identifiable  {
+public protocol AssetStyle: Equatable, Identifiable  {
     
     static func == (lhs: Self, rhs: Self) -> Bool
     var id: String { get set }

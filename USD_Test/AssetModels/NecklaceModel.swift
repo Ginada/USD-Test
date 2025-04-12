@@ -64,4 +64,14 @@ class NecklaceModel: BaseModel, ObservableObject {
         }
     }
     
+    func setPose(transitionDuration: TimeInterval = 0.3, name: String = "idle") {
+        if let clip = AnimationLibrary.shared.pose(for: name) {
+            necklaceModel?.playAnimation(clip, transitionDuration: transitionDuration, startsPaused: false)
+        }
+    }
+    
+    func stopAnimations() {
+        necklaceModel?.stopAllAnimations()
+    }
+    
 }

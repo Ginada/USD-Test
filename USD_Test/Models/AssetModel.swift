@@ -7,35 +7,35 @@
 
 import SceneKit
 
-struct AssetModel: AssetStyle, Codable, Hashable {
+public struct AssetModel: AssetStyle, Codable, Hashable {
     
-    var challengeId: String?
-    var secondaryChallengeId: String?
-    static func == (lhs: AssetModel, rhs: AssetModel) -> Bool {
+    public var challengeId: String?
+    public var secondaryChallengeId: String?
+    public static func == (lhs: AssetModel, rhs: AssetModel) -> Bool {
         return lhs.id == rhs.id
     }
-    var id: String
-    var type: AssetCategory
-    var thumbName: String?
-    var thumbUrl: String
-    var modelId: String?
-    let sceneName: String
-    let objNames: [String]
-    let textures: [String : String]
-    let opacity: [String : Float]?
-    let roughness: [String : Float]?
-    let metalness: [String : Float]?
-    let normal: [String : String]?
-    let doubleSided: [String]?
-    var scale: Float? = nil
-    var theme: Theme?
-    var tags: [ThemeTag]?
-    var show: Bool?
-    var shared: Bool?
-    var unlockType: UnlockType?
-    var pointLevel: PointLevel?
-    var unlockAmount: Int?
-    var boxUnlockableId: String?
+    public var id: String
+    public var type: AssetCategory
+    public var thumbName: String?
+    public var thumbUrl: String
+    public var modelId: String?
+    public let sceneName: String
+    public let objNames: [String]
+    public let textures: [String : String]
+    public let opacity: [String : Float]?
+    public let roughness: [String : Float]?
+    public let metalness: [String : Float]?
+    public let normal: [String : String]?
+    public let doubleSided: [String]?
+    public var scale: Float? = nil
+    public var theme: Theme?
+    public var tags: [ThemeTag]?
+    public var show: Bool?
+    public var shared: Bool?
+    public var unlockType: UnlockType?
+    public var pointLevel: PointLevel?
+    public var unlockAmount: Int?
+    public var boxUnlockableId: String?
 }
 
 extension AssetModel {

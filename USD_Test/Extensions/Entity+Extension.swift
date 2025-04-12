@@ -6,6 +6,7 @@
 //
 
 import RealityKit
+import Foundation
 
 extension Entity {
     
@@ -35,3 +36,4 @@ extension Entity {
             return ids
         }
 }
+

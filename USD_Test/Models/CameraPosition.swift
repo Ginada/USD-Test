@@ -7,7 +7,7 @@
 
 import RealityKit
 
-enum CameraPosition: String, CaseIterable, Hashable {
+public enum CameraPosition: String, CaseIterable, Hashable {
     case start
     case zoomFace
     case center

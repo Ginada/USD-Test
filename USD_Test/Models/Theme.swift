@@ -8,9 +8,9 @@
 import Foundation
 
 
-enum Theme: String, Codable, Identifiable, CaseIterable {
+public enum Theme: String, Codable, Identifiable, CaseIterable {
     
-    var id: Self { self }
+    public var id: Self { self }
     
     case glamour
     case formal
@@ -27,9 +27,9 @@ enum Theme: String, Codable, Identifiable, CaseIterable {
     case elegance
 }
 
-enum ThemeTag: String, Codable, Identifiable, CaseIterable {
+public enum ThemeTag: String, Codable, Identifiable, CaseIterable {
     
-    var id: Self { self }
+    public var id: Self { self }
     
     case date
     case forests

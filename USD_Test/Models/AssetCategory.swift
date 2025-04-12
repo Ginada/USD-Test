@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum AssetCategory: String, CaseIterable, Codable, Hashable {
+public enum AssetCategory: String, CaseIterable, Codable, Hashable {
     
     case foundation
     case eyeshadow

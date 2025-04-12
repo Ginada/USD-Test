@@ -163,7 +163,7 @@ class FaceModel: BaseModel, ObservableObject {
     }
     
     /// Adds a new makeup layer for the specified type.
-    func addMakeupLayer(_ type: MakeupType) {
+    private func addMakeupLayer(_ type: MakeupType) {
         // Clone the baseLayer as the new makeup layer.
         let newClone = baseLayer.clone(recursive: true)
         newClone.name = "\(type)_layer_\(UUID().uuidString.prefix(6))"
@@ -294,6 +294,24 @@ class FaceModel: BaseModel, ObservableObject {
                 makeups.forEach { makeup in
                     makeup.playAnimation(clip, transitionDuration: transitionDuration, startsPaused: false)
                 }
+            }
+        }
+    }
+    
+    func setPose(name: String, transitionDuration: TimeInterval = 0.3) {
+        if let clip = AnimationLibrary.shared.pose(for: name) {
+            currentMakeupNodes.forEach { type, makeups in
+                makeups.forEach { makeup in
+                    makeup.playAnimation(clip, transitionDuration: transitionDuration, startsPaused: false)
+                }
+            }
+        }
+    }
+    
+    func stopAnimations() {
+        currentMakeupNodes.forEach { type, makeups in
+            makeups.forEach { makeup in
+                makeup.stopAllAnimations()
             }
         }
     }

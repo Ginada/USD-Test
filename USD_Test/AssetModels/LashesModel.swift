@@ -14,10 +14,12 @@ class LashesModel: AvatarComponent {
         let material = MaterialManager.createPBRMaterial(texture: "lashes_1", normal: nil, doubleSided: true)
         
         // Call the superclass initializer.
-        super.init(resourceName: "model_lashes",
+        super.init(resourceNames: ["model_lashes_lower", "model_lashes_upper"],
                    targetEntityName: "Armature",
                    material: material,
                    orientation: simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0)))
+        
+       // updateShape(with: .eyeHorizontal, weight: 0.6)
         
     }
     

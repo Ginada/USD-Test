@@ -8,6 +8,7 @@
 import RealityKit
 import Foundation
 import UIKit
+import SwiftUICore
 
 class BaseModel {
     
@@ -303,6 +304,6 @@ class BaseModel {
         replaceAccessory(tappedEntity)
     }
     
-    
-    
+   
 }
+
