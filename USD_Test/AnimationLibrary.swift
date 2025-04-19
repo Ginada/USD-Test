@@ -34,8 +34,11 @@ class AnimationLibrary {
             "pose_2_anim": "pose_2_anim"   // For pose 2
         ]
         // Mapping from key to file names for general animations.
+        let repeatedAnimationFiles: [String: String] = [
+            "all": "base_animations",
+        ]
         let animationFiles: [String: String] = [
-            "idle": "model_head",      // For "idle", load from model_head.usdc
+            "inbetween": "inbetween_animation",
         ]
         
         // Load pose files.
@@ -46,37 +49,73 @@ class AnimationLibrary {
         for (key, fileName) in animationFiles {
             await loadAnimation(for: key, fileName: fileName, type: .animation)
         }
-        if let animation = animations["idle"] {
-            print("Animation loaded: \(animation)")
-            let view = await AnimationView(source: animation.definition,
-                                           name: "default",
-                                           bindTarget: nil,
-                                           blendLayer: 0,
-                                           repeatMode: .none,
-                                           fillMode: [],
-                                           trimStart: 0.0,
-                                           trimEnd: 0.2,
-                                           trimDuration: nil,
-                                           offset: 0,
-                                           delay: 0,
-                                           speed: 1.0)
-            
-            
-            // Create an animation resource from the clip.
-            let clipResource = try? await AnimationResource.generate(with: view)
-            if let clipResource = clipResource {
-                animations["default"] = clipResource
-                print("Generated animation resource for idle: \(clipResource)")
-            } else {
-                print("Failed to generate animation resource for idle")
-            }
-        } else {
-            print("No animation found for key: idle")
+        for (key, fileName) in repeatedAnimationFiles {
+            await loadAnimation(for: key, fileName: fileName, type: .animation, repeated: true)
         }
+        if let idle = AnimationLibrary.shared.animation(for: "all") {
+            let frameRate = 25.0 // Set your animation's frame rate here
+            let clip = await AnimationLibrary.shared.extractClipByFrames(
+                from: idle,
+                name: "default",
+                startFrame: 0,
+                endFrame: 10,
+                frameRate: frameRate
+            )
+            animations["default"] = clip
+            
+            let clip_idle = await AnimationLibrary.shared.extractClipByFrames(
+                from: idle,
+                name: "idle",
+                startFrame: 10,
+                endFrame: 190,
+                frameRate: frameRate,
+                repeatMode: .repeat // <-- Use repeat mode
+            )
+            animations["idle"] = clip_idle
+        }
+                
+    }
+
+    /// Extracts a trimmed animation clip from an existing AnimationResource using frame numbers.
+    /// - Parameters:
+    ///   - source: The source AnimationResource.
+    ///   - name: The name for the new clip.
+    ///   - startFrame: Start frame number.
+    ///   - endFrame: End frame number.
+    ///   - frameRate: Frames per second of the animation.
+    ///   - speed: Playback speed.
+    /// - Returns: A new AnimationResource, or nil if generation fails.
+    func extractClipByFrames(
+        from source: AnimationResource,
+        name: String,
+        startFrame: Int,
+        endFrame: Int,
+        frameRate: Double,
+        speed: Float = 1.0,
+        repeatMode: AnimationRepeatMode = .none // <-- New parameter with default
+    ) async -> AnimationResource? {
+        let trimStart = Double(startFrame) / frameRate
+        let trimEnd = Double(endFrame) / frameRate
+        
+        let view = await AnimationView(
+            source: source.definition,
+            name: name,
+            bindTarget: nil,
+            blendLayer: 0,
+            repeatMode: repeatMode, // <-- Use parameter
+            fillMode: [],
+            trimStart: trimStart,
+            trimEnd: trimEnd,
+            trimDuration: nil,
+            offset: 0,
+            delay: 0,
+            speed: speed
+        )
+        return try? await AnimationResource.generate(with: view)
     }
     
     /// Asynchronously loads an animation file and stores it in the appropriate dictionary.
-    private func loadAnimation(for key: String, fileName: String, type: AnimationType) async {
+    private func loadAnimation(for key: String, fileName: String, type: AnimationType, repeated: Bool = false) async {
         do {
             // Use the async initializer. Note: Ensure that your files are added to the main bundle.
             let entity = try await Entity(named: fileName)
@@ -98,7 +137,7 @@ class AnimationLibrary {
             let animationsArray = await modelEntity.availableAnimations
             
             // Use the first available animation for simplicity.
-            if let firstAnimation = animationsArray.last {
+            if let firstAnimation = animationsArray.first {
                 // Optionally, repeat the animation indefinitely (duration = 0 or you can use .infinity).
                 // In this example, we call repeat with a duration of 0 (no repeat) as a placeholder.
                 let repeatedAnimation = await firstAnimation.repeat(duration: .infinity)
@@ -107,7 +146,11 @@ class AnimationLibrary {
                 case .pose:
                     poses[key] = firstAnimation
                 case .animation:
-                    animations[key] = repeatedAnimation
+                    if repeated {
+                        animations[key] = repeatedAnimation
+                    } else {
+                        animations[key] = firstAnimation
+                    }
                 }
                 print("Loaded \(type == .pose ? "pose" : "animation"): \(key)")
             } else {

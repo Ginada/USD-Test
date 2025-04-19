@@ -12,7 +12,35 @@ import UIKit
 
 class MaterialManager {
     
-    static func createPBRMaterial(texture: String, normal: String?, metalness: Float = 0.0, roughness: Float = 0.5, doubleSided: Bool = false, roughnessTexture: String? = nil) -> PhysicallyBasedMaterial {
+    static let shared = MaterialManager()
+    private(set) var outlineMaterial: Material?
+    
+    private init() {
+            loadMaterial()
+        }
+    
+    private func loadMaterial() {
+            // Load the USDZ asset containing your shader-graph material, or
+            // call your helper function that creates the CustomMaterial.
+            // For example, if you use a function like createCustomOutlineMaterial():
+            self.outlineMaterial = loadShaderGraphMaterial()
+    }
+    
+    func loadShaderGraphMaterial() -> Material? {
+        do {
+            let entity = try Entity.load(named: "Outline_material")
+            // Assume your USDZ file contains one model entity with a custom material.
+            if let modelEntity = entity.findEntity(named: "Sphere") as? ModelEntity,
+               let material = modelEntity.model?.materials.first {
+                return material
+            }
+        } catch {
+            print("Failed to load shader-graph material: \(error)")
+        }
+        return nil
+    }
+    
+    static func createPBRMaterial(texture: String, normal: String?, metalness: Float = 0.0, roughness: Float = 0.5, doubleSided: Bool = false, roughnessTexture: String? = nil, metalnessTexture: String? = nil, opacity: Float? = nil) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         
         // Load and assign the base color texture.
@@ -60,7 +88,19 @@ class MaterialManager {
         if doubleSided {
             material.faceCulling = .none
         }
-        
+        if let metalnessTexture = metalnessTexture {
+            // Load and assign the metalness texture.
+            if let metalnessResource = try? TextureResource.load(named: metalnessTexture) {
+                let metalnessTexture = MaterialParameters.Texture(metalnessResource)
+                material.metallic = PhysicallyBasedMaterial.Metallic(texture: metalnessTexture)
+            } else {
+                // Fallback: if metalness map fails, leave it unassigned (or provide a default if desired).
+                //material.metallic = .init(texture: nil)
+                print("Error: Unable to load metalness texture named \(metalnessTexture).")
+            }
+        } else {
+            material.metallic = PhysicallyBasedMaterial.Metallic(floatLiteral: metalness)
+        }
         material.metallic = PhysicallyBasedMaterial.Metallic(floatLiteral: metalness)
        
         
@@ -148,6 +188,10 @@ class MaterialManager {
             print("Error creating custom material: \(error.localizedDescription)")
             return nil
         }
+    }
+    
+    static func outLineMaterial() -> Material {
+        return MaterialManager.shared.outlineMaterial ?? PhysicallyBasedMaterial()
     }
     
     static func createCustomOutlineMaterial(baseTint: UIColor = .white) -> CustomMaterial? {

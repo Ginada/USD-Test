@@ -8,10 +8,26 @@ import SwiftUI
 import RealityKit
 import Combine
 
-class AvatarComponent: ObservableObject {
+protocol AnimatableAvatar {
+    
+    func playAnimation(name: String, transitionDuration: TimeInterval)
+    func startPingPongShapeAnimation(with shapes: [(shape: FaceShape, weight: CGFloat)], animationDuration: TimeInterval, pauseAtTarget: TimeInterval, loopPause: TimeInterval)
+    func updateShapeAnimated(with shapes: [(shape: FaceShape, weight: CGFloat)], duration: TimeInterval, reverse: Bool, reversePause: TimeInterval)
+}
+
+
+class AvatarComponent: ObservableObject, AnimatableAvatar {
+    
     var armature: [ModelEntity] = []
     let animationLibrary = AnimationLibrary.shared
-
+    //private var pingPongOriginalShapes: [(shape: FaceShape, weight: CGFloat)]?
+    //private var pingPongIsForward = true
+    //private var pingPongIsPaused = false
+    private var pingPongSubscription: Cancellable?
+    private var pingPongIsActive = false
+    
+    
+    
     /// Loads a ModelEntity (armature) from a USD file and applies the given material and orientation.
     init(resourceName: String,
          targetEntityName: String = "Armature",
@@ -30,7 +46,7 @@ class AvatarComponent: ObservableObject {
             armatureEntity.orientation = orientation
         }
         self.armature.append(armatureEntity)
-       
+        
     }
     
     init(resourceNames: [String],
@@ -39,33 +55,37 @@ class AvatarComponent: ObservableObject {
          orientation: simd_quatf? = nil) {
         
         for resource in resourceNames {
-                // Attempt to load the root entity for the current resource.
-                guard let rootEntity = try? Entity.load(named: resource) else {
-                    // Skip this resource if it fails to load.
-                    continue
-                }
-
-                // Look for the target entity within the root entity.
-                guard let armatureEntity = rootEntity.findEntity(named: targetEntityName) as? ModelEntity else {
-                    fatalError("Target entity \(targetEntityName) not found in \(resource)")
-                }
-
-                // Optionally apply a material.
-                if let material = material {
-                    armatureEntity.setMaterial(material)
-                }
-
-                // Optionally apply an orientation.
-                if let orientation = orientation {
-                    armatureEntity.orientation = orientation
-                }
-
-                // Add the successfully loaded armature entity to the array.
-                self.armature.append(armatureEntity)
+            // Attempt to load the root entity for the current resource.
+            guard let rootEntity = try? Entity.load(named: resource) else {
+                // Skip this resource if it fails to load.
+                continue
             }
+            
+            // Look for the target entity within the root entity.
+            guard let armatureEntity = rootEntity.findEntity(named: targetEntityName) as? ModelEntity else {
+                fatalError("Target entity \(targetEntityName) not found in \(resource)")
+            }
+            
+            // Optionally apply a material.
+            if let material = material {
+                armatureEntity.setMaterial(material)
+            }
+            
+            // Optionally apply an orientation.
+            if let orientation = orientation {
+                armatureEntity.orientation = orientation
+            }
+            
+            // Add the successfully loaded armature entity to the array.
+            self.armature.append(armatureEntity)
+        }
     }
     
     init() {}
+
+    init(armature: [ModelEntity]) {
+        self.armature = armature
+    }
     
     func loadModel(_ assetStyle: any AssetStyle) {
         
@@ -100,28 +120,68 @@ class AvatarComponent: ObservableObject {
         }
     }
     
+    func updateFaceShape(settings: [FaceShape: Double]) {
+        guard let headArmature = armature.first else {
+            fatalError("Head Armature not found")
+        }
+        
+        for setting in settings {
+            updateShape(with: setting.key, weight: setting.value)
+        }
+    }
     
-    func updateShapeAnimated(with shapes: [(shape: FaceShape, weight: CGFloat)], duration: TimeInterval = 0.5) {
-        armature.forEach { node in
-            // Retrieve the blend shape component.
-            guard let blendShapeComponent = node.components[BlendShapeWeightsComponent.self] else {
-                return
-            }
-            
-            // Get the current blend shape data from the first weight set.
-            let currentData = blendShapeComponent.weightSet[0]
-            
-            // Convert current data into a BlendShapeWeights instance.
-            let fromWeights = BlendShapeWeights(currentData.weights)
-            var toWeights = fromWeights
-            
-            // Retrieve weight names (if needed by the animation).
-            let weightNames = blendShapeComponent.weightSet.first?.weightNames ?? []
-
-            // Loop through each (FaceShape, weight) pair and update the corresponding blend shape index.
-            for (faceShape, weight) in shapes {
-                // Determine which blend shape index to use based on the node name.
-                var blendIndex: Int?
+//    private func playPingPongStep(
+//        shapes: [(shape: FaceShape, weight: CGFloat)],
+//        originalShapes: [(shape: FaceShape, weight: CGFloat)],
+//        duration: TimeInterval,
+//        pauseDuration: TimeInterval
+//    ) {
+//        let targetShapes = pingPongIsForward ? shapes : originalShapes
+//        pingPongIsForward.toggle()
+//        
+//        // Play the animation
+//        updateShapeAnimated(with: targetShapes, duration: duration)
+//        
+//        // Subscribe to animation completion on the first armature node
+//        if let node = armature.first, let scene = node.scene {
+//            pingPongSubscription?.cancel()
+//            pingPongSubscription = scene.subscribe(
+//                to: AnimationEvents.PlaybackCompleted.self,
+//                on: node
+//            ) { [weak self] _ in
+//                guard let self = self else { return }
+//                // Wait for pauseDuration, then play the next step
+//                DispatchQueue.main.asyncAfter(deadline: .now() + pauseDuration) {
+//                    self.playPingPongStep(
+//                        shapes: shapes,
+//                        originalShapes: originalShapes,
+//                        duration: duration,
+//                        pauseDuration: pauseDuration
+//                    )
+//                }
+//            }
+//        }
+//    }
+    
+    func stopLoopingShapeAnimation() {
+       pingPongIsActive = false
+        pingPongSubscription?.cancel()
+        pingPongSubscription = nil
+    }
+    
+    func updateShapeAnimated(
+        with shapes: [(shape: FaceShape, weight: CGFloat)],
+        duration: TimeInterval = 0.5,
+        reverse: Bool = false,
+        reversePause: TimeInterval = 0.0
+    ) {
+        // Save original weights if reverse is requested
+        var originalShapes: [(shape: FaceShape, weight: CGFloat)] = []
+        if reverse {
+            armature.forEach { node in
+                guard let blendShapeComponent = node.components[BlendShapeWeightsComponent.self] else { return }
+                for (faceShape, _) in shapes {
+                    var blendIndex: Int?
                     node.children.forEach { child in
                         switch child.name {
                         case "Eyebrows":
@@ -133,16 +193,44 @@ class AvatarComponent: ObservableObject {
                                 blendIndex = faceShape.rawValue
                             }
                         }
+                    }
+                    if let blendIndex = blendIndex,
+                       blendShapeComponent.weightSet[0].weights.indices.contains(blendIndex) {
+                        let currentWeight = CGFloat(blendShapeComponent.weightSet[0].weights[blendIndex])
+                        originalShapes.append((shape: faceShape, weight: currentWeight))
+                    }
                 }
-                
-                // Verify the index exists within the weight array.
+            }
+        }
+        
+        // Animate to target
+        armature.forEach { node in
+            // Retrieve the blend shape component.
+            guard let blendShapeComponent = node.components[BlendShapeWeightsComponent.self] else {
+                return
+            }
+            let currentData = blendShapeComponent.weightSet[0]
+            let fromWeights = BlendShapeWeights(currentData.weights)
+            var toWeights = fromWeights
+            let weightNames = blendShapeComponent.weightSet.first?.weightNames ?? []
+            for (faceShape, weight) in shapes {
+                var blendIndex: Int?
+                node.children.forEach { child in
+                    switch child.name {
+                    case "Eyebrows":
+                        blendIndex = faceShape.browIndex
+                    case "Lashes_upper", "Lashes_lower":
+                        blendIndex = faceShape.eyelashesIndex
+                    default:
+                        if blendIndex == nil {
+                            blendIndex = faceShape.rawValue
+                        }
+                    }
+                }
                 if let index = blendIndex, fromWeights.indices.contains(index) {
-                    // Update the target weight.
                     toWeights[index] = Float(weight)
                 }
             }
-            
-            // Create the FromToByAnimation with the new weights.
             let animationDefinition = FromToByAnimation<BlendShapeWeights>(
                 weightNames: weightNames,
                 from: fromWeights,
@@ -152,11 +240,7 @@ class AvatarComponent: ObservableObject {
                 isAdditive: false,
                 bindTarget: .blendShapeWeights
             )
-            
-            // Optionally wrap the animation in an AnimationView.
             let animationViewDefinition = AnimationView(source: animationDefinition, delay: 0, speed: 1.0)
-            
-            // Generate an AnimationResource and play it.
             do {
                 let animationResource = try AnimationResource.generate(with: animationViewDefinition)
                 node.playAnimation(animationResource)
@@ -164,11 +248,112 @@ class AvatarComponent: ObservableObject {
                 print("Error generating blend shape animation for node \(node.name): \(error)")
             }
         }
+        
+        // If reverse is requested, subscribe to completion and animate back
+        if reverse, let node = armature.first, let scene = node.scene {
+            var subscription: Cancellable?
+            
+            subscription = scene.subscribe(
+                to: AnimationEvents.PlaybackCompleted.self,
+                on: node
+            ) { [weak self] _ in
+                subscription?.cancel()
+                guard let self = self else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + reversePause) {
+                    self.updateShapeAnimated(with: originalShapes, duration: duration)
+                }
+            }
+        }
     }
     
-    init(armature: [ModelEntity]) {
-        self.armature = armature
+    func startPingPongShapeAnimation(
+    with shapes: [(shape: FaceShape, weight: CGFloat)],
+    animationDuration: TimeInterval,
+    pauseAtTarget: TimeInterval,
+    loopPause: TimeInterval
+) {
+    stopLoopingShapeAnimation()
+    pingPongIsActive = true
+
+    func pingPongStep() {
+        guard self.pingPongIsActive else { return }
+        self.updateShapeAnimated(
+            with: shapes,
+            duration: animationDuration,
+            reverse: true,
+            reversePause: pauseAtTarget
+        )
+        // Schedule next ping-pong after forward+pause+reverse+loopPause
+        let totalDelay = animationDuration + pauseAtTarget + animationDuration + loopPause
+        DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
+            pingPongStep()
+        }
     }
+
+    pingPongStep()
+}
+    
+//    private func pingPongAnimateForward(
+//        shapes: [(shape: FaceShape, weight: CGFloat)],
+//        originalShapes: [(shape: FaceShape, weight: CGFloat)],
+//        animationDuration: TimeInterval,
+//        pauseAtTarget: TimeInterval,
+//        loopPause: TimeInterval
+//    ) {
+//        guard pingPongIsActive else { return }
+//        updateShapeAnimated(with: shapes, duration: animationDuration)
+//        
+//        // Subscribe to animation completion
+//        if let node = armature.first, let scene = node.scene {
+//            pingPongSubscription?.cancel()
+//            pingPongSubscription = scene.subscribe(
+//                to: AnimationEvents.PlaybackCompleted.self,
+//                on: node
+//            ) { [weak self] _ in
+//                guard let self = self, self.pingPongIsActive else { return }
+//                self.pingPongSubscription?.cancel()
+//                // Pause at target
+//                DispatchQueue.main.asyncAfter(deadline: .now() + pauseAtTarget) {
+//                    self.pingPongAnimateBackward(
+//                        shapes: shapes,
+//                        originalShapes: originalShapes,
+//                        animationDuration: animationDuration, pauseAtTarget: pauseAtTarget,
+//                        loopPause: loopPause
+//                    )
+//                }
+//            }
+//        }
+//    }
+    
+//    private func pingPongAnimateBackward(
+//        shapes: [(shape: FaceShape, weight: CGFloat)],
+//        originalShapes: [(shape: FaceShape, weight: CGFloat)],
+//        animationDuration: TimeInterval,
+//        pauseAtTarget: TimeInterval, // <-- Add this parameter
+//        loopPause: TimeInterval
+//    ) {
+//        guard pingPongIsActive else { return }
+//        updateShapeAnimated(with: originalShapes, duration: animationDuration)
+//        if let node = armature.first, let scene = node.scene {
+//            pingPongSubscription?.cancel()
+//            pingPongSubscription = scene.subscribe(
+//                to: AnimationEvents.PlaybackCompleted.self,
+//                on: node
+//            ) { [weak self] _ in
+//                guard let self = self, self.pingPongIsActive else { return }
+//                self.pingPongSubscription?.cancel()
+//                DispatchQueue.main.asyncAfter(deadline: .now() + loopPause) {
+//                    self.pingPongAnimateForward(
+//                        shapes: shapes,
+//                        originalShapes: originalShapes,
+//                        animationDuration: animationDuration,
+//                        pauseAtTarget: pauseAtTarget, // <-- Pass it here
+//                        loopPause: loopPause
+//                    )
+//                }
+//            }
+//        }
+//    }
     
     /// Plays an animation with the given name.
     func playAnimation(name: String, transitionDuration: TimeInterval = 0.3) {
@@ -184,22 +369,10 @@ class AvatarComponent: ObservableObject {
             armature.forEach { entity in
                 entity.playAnimation(defaultPoseClip, transitionDuration: 0.3, startsPaused: false)
             }
-//            
-//            // Optionally, subscribe to the playback completion event on one of the entities.
-//            if let firstEntity = armature.first, let scene = firstEntity.scene {
-//                var animationSubscription: Cancellable?
-//                animationSubscription = scene.subscribe(
-//                    to: AnimationEvents.PlaybackCompleted.self,
-//                    on: firstEntity
-//                ) { [weak self] event in
-//                    // Once the animation completes, stop any active animations.
-//                    self?.stopAnimations()
-//                    animationSubscription?.cancel()
-//                }
-//            }
         } else {
             print("Default pose animation clip not found in the library.")
         }
+        stopLoopingShapeAnimation()
     }
     
     func setPose(name: String, transitionDuration: TimeInterval = 0.3) {

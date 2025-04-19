@@ -74,4 +74,15 @@ class NecklaceModel: BaseModel, ObservableObject {
         necklaceModel?.stopAllAnimations()
     }
     
+    func placedGemIds() -> [String] {
+        let gemIds = placements.compactMap { placement -> String? in
+            guard let parent = placement.parent, parent.children.count > 1 else { return nil }
+            return parent.children[1].name
+        }
+        // Use a Set to filter out duplicates.
+        let uniqueIds = Array(Set(gemIds))
+        // Remove "_accessory" from each id.
+        return uniqueIds.map { $0.replacingOccurrences(of: "_accessory", with: "") }
+    }
+    
 }

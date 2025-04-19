@@ -10,6 +10,9 @@ import SwiftUI
 
 class HairAccessoryModel: BaseModel, ObservableObject {
     
+    //"hair_medium_wayvy_placement_relative"
+    var placementFile: String?
+    
     override init() {
        super.init()
         NotificationCenter.default.addObserver(self,
@@ -18,7 +21,15 @@ class HairAccessoryModel: BaseModel, ObservableObject {
                                                object: nil)
     }
     
-    func loadModel(_ name: String) {
+    func showHairAccessory() {
+        if let placementFile = placementFile {
+            loadModel(placementFile)
+        } else {
+            print("Placement file not set.")
+        }
+    }
+    
+    private func loadModel(_ name: String) {
         
         guard let headModel = headModel, let skeleton = headModel.findEntity(named: "Armature") as? ModelEntity else {
             fatalError("Head skeleton not found")
@@ -35,7 +46,7 @@ class HairAccessoryModel: BaseModel, ObservableObject {
         let loadedEarring: ModelEntity
         let loadedPlacements: [Entity]
         do {
-            (loadedEarring, loadedPlacements) = try loadModel(sceneName: "hair_medium_wayvy_placement_relative", modelName: "Cube", placementName: "hairx")
+            (loadedEarring, loadedPlacements) = try loadModel(sceneName: name, modelName: "Cube", placementName: "hairx")
         } catch {
             fatalError("Failed to load earring: \(error)")
         }
@@ -124,5 +135,9 @@ class HairAccessoryModel: BaseModel, ObservableObject {
         print("  scale       = \(transformNew.scale)")
         
         print("=============================")
+    }
+    
+    func setPlacementFile(_ file: String) {
+        self.placementFile = file
     }
 }

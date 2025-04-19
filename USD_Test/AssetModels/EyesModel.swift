@@ -16,6 +16,7 @@ class EyesModel: BaseModel, ObservableObject {
     var leftEyeInner: ModelEntity?
     var leftEyeOuter: ModelEntity?
     
+    
     override init() {
         super.init()
         
@@ -116,7 +117,14 @@ class EyesModel: BaseModel, ObservableObject {
     
     func updateColor(color: EyeColorModel) {
         let colorMap = "Eyes_BaseColor_\(color.color)"
-        let pbrMaterial = MaterialManager.createPBRMaterial(texture: colorMap, normal: nil)
+        let pbrMaterial = MaterialManager.createPBRMaterial(texture: colorMap, normal: "Eyes_Normal")
+        leftEyeInner?.setMaterial(pbrMaterial)
+        rightEyeInner?.setMaterial(pbrMaterial)
+    }
+    
+    func updateEyeColor(color: EyeColor) {
+        let colorMap = "Eyes_BaseColor_\(color.eyeColorName)"
+        let pbrMaterial = MaterialManager.createPBRMaterial(texture: colorMap, normal: "Eyes_Normal")
         leftEyeInner?.setMaterial(pbrMaterial)
         rightEyeInner?.setMaterial(pbrMaterial)
     }
@@ -145,19 +153,27 @@ class EyesModel: BaseModel, ObservableObject {
     }
     
     func updateEyeDistance(distance: Float) {
-        let distance = distance/1000
-       //update position of eyes in x
-        rightEyeInner?.position.x = distance
-        rightEyeOuter?.position.x = distance
-        leftEyeInner?.position.x = -distance
-        leftEyeOuter?.position.x = -distance
+        // 1) Clamp the input into [-1…1]
+        let clamped = max(-1.0, min(distance, 1.0))
+       
+        let mapped = -clamped * 3.6 - 0.2
+        
+        // 3) Divide the remapped value by 1000
+        let finalX = mapped / 1000.0
+        
+        // 4) Apply to both eyes (mirror for the left)
+        rightEyeInner?.position.x =  finalX
+        rightEyeOuter?.position.x =  finalX
+        leftEyeInner?.position.x  = -finalX
+        leftEyeOuter?.position.x  = -finalX
     }
     
     func updateEyeScale(_ scale: Float) {
-        let scale = scale/100
+        let scale = 1 + (scale/5)
         rightEyeInner?.scale = SIMD3<Float>(scale, scale, scale)
         rightEyeOuter?.scale = SIMD3<Float>(scale, scale, scale)
         leftEyeInner?.scale = SIMD3<Float>(scale, scale, scale)
         leftEyeOuter?.scale = SIMD3<Float>(scale, scale, scale)
     }
 }
+

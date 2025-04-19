@@ -8,14 +8,14 @@
 import Foundation
 
 
-enum PaletteType: String, Codable {
+public enum PaletteType: String, Codable {
     
     case highlight
     case mid
     case shadow
 }
 
-struct Palette: Codable {
+public struct Palette: Codable {
     
     var name: String
     var id: String

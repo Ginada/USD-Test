@@ -11,12 +11,34 @@ import ARKit
 import Combine
 
 public protocol ARSceneControlling: AnyObject {
+    // Animation
     func playAnimation(_ name: String)
     func stopAnimations()
     func setPose(_ name: String)
+    // Model
+    func selectStyle(style: any AssetStyle, selectedCategory: AssetCategory, palette: Palette)
+    func removeStyle(selectedCategory: AssetCategory)
     func loadHair()
+    func updateHairColor(_ color: HairColor)
+    func updateBodyColor(_ color: BodyColor)
+    func updateEyeColor(_ color: EyeColor)
     func loadEarrings(with asset: AssetModel)
+    func resetModel()
+    func loadHairAccessoryPlacementFile(_ fileName: String)
+    func showHairAccessory()
+    func updateFaceShape(setting: [FaceShape: Double])
+    func hidePlacements(category: AssetCategory)
+    func showPlacements(category: AssetCategory)
+    func placedEarringGemIds() -> [String]
+    func placedNecklaceGemIds() -> [String]
+    func updateEyeDistance(distance: Float)
+    func updateEyeSize(size: Float)
+    //func moveCamera(for assetCat: AssetCategory)
+    func loadCustomAvatarModel(_ appearance: Appearance)
+    // Camera
+    
     func updateCameraPosition(to position: CameraPosition)
+    
     
 }
 
@@ -54,6 +76,7 @@ struct ARContainerView: UIViewRepresentable {
 
     // MARK: - Coordinator
     class Coordinator: NSObject {
+        let parent: ARContainerView
         var modelsAnchor: AnchorEntity?    // Rotatable content anchor.
         var staticAnchor: AnchorEntity?      // Environment & lights anchor.
         var cameraAnchor: AnchorEntity?
@@ -64,6 +87,12 @@ struct ARContainerView: UIViewRepresentable {
         var initialPanYRotation: Float = 0.0
         
         var cancellable: AnyCancellable?
+        
+        init(parent: ARContainerView) {
+            self.parent = parent
+            super.init()
+        }
+            
         
         // MARK: - Gesture Handlers
         
@@ -98,13 +127,20 @@ struct ARContainerView: UIViewRepresentable {
         
         @objc func handlePinch(_ gesture: UIPinchGestureRecognizer) {
             guard let cameraAnchor = cameraAnchor else { return }
+            // Retrieve the current camera position.
+            let currentPosition = parent.cameraController.cameraPosition
+            let thresholds = currentPosition.zoomThresholds
+            let yRange = currentPosition.yOffsetRange
+            
+
             if gesture.state == .began {
                 initialCameraZ = cameraAnchor.position.z
             } else if gesture.state == .changed {
                 let rawNewZ = initialCameraZ / Float(gesture.scale)
-                let newZ = max(0.16, min(rawNewZ, 0.6))
-                let normalized = (newZ - 0.16) / (0.6 - 0.16)
-                let newY = normalized * (-0.4) + 0.3
+                let newZ = max(thresholds.min, min(rawNewZ, thresholds.max))
+                let normalized = (newZ - thresholds.min) / (thresholds.max - thresholds.min)
+                // Calculate newY based on the relative yOffset range.
+                let newY = normalized * (yRange.max - yRange.min) + yRange.min
                 cameraAnchor.position = SIMD3<Float>(0, newY, newZ)
             }
         }
@@ -117,7 +153,7 @@ struct ARContainerView: UIViewRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        let coordinator = Coordinator()
+        let coordinator = Coordinator(parent: self)
         coordinator.cancellable = cameraController.$cameraPosition.sink { [weak coordinator] newPosition in
             coordinator?.updateCameraPosition(to: newPosition)
         }
@@ -169,6 +205,7 @@ struct ARContainerView: UIViewRepresentable {
     private func createModelsAnchor() -> AnchorEntity {
         let anchor = AnchorEntity(world: [0, -0.2, -0.2])
         anchor.addChild(faceModel.parent)
+        anchor.addChild(faceModel.animationModel!)
         anchor.addChild(headModel.armature.first!)
         lashesModel.armature.forEach { model in
             anchor.addChild(model)

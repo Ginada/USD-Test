@@ -23,6 +23,10 @@ class LashesModel: AvatarComponent {
         
     }
     
+    override func removeAll() {
+        updateFaceShape(settings: [FaceShape.smile: 0, FaceShape.blink: 0, FaceShape.jawOpen: 0, FaceShape.pout: 0, FaceShape.frown: 0])
+    }
+    
     override func updateShape(with shape: FaceShape, weight: CGFloat) {
         armature.forEach {node in
             guard var blendShape = node.components[BlendShapeWeightsComponent.self] else { return }

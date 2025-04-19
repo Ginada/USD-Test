@@ -51,12 +51,31 @@ extension AssetModel {
     }
 
     static var mockGemsData: [AssetModel] {
-        let stone1 = AssetModel(id: "1", type: .gems, thumbName: "thumb_crystal_36", thumbUrl: "", sceneName: "bead_plane_large", objNames: ["bead_plane_large"], textures: ["bead_plane_large": "bead_4_blue.png"], opacity: nil, roughness: ["bead_plane_large": 0.2], metalness: ["bead_plane_large": 0.2], normal: ["bead_plane_large": "bead_4_nmp.jpg"], doubleSided: nil, scale: 1, tags: [ThemeTag.clouds,ThemeTag.fairy], unlockType: UnlockType.coins, pointLevel: .basic, unlockAmount: 1)
+        let stone = AssetModel(
+            id: "1dfAS",
+            type: .gems,
+            thumbName: "thumb_crystal_36",
+            thumbUrl: "",
+            sceneName: "shell_round",
+            objNames: ["shell_round"],
+            textures: ["shell_round": "shell_color.jpg"],
+            opacity: nil,
+            roughness: ["shell_round": 0.2],
+            metalness: ["shell_round": 0.2],
+            normal: ["shell_round": "shell_normal.jpg"],
+            doubleSided: nil,
+            scale: 0.8,
+            tags: [ThemeTag.clouds, ThemeTag.fairy],
+            unlockType: UnlockType.coins,
+            pointLevel: .basic,
+            unlockAmount: 1
+        )
+        let stone1 = AssetModel(id: "2ACwe", type: .gems, thumbName: "thumb_crystal_36", thumbUrl: "", sceneName: "metal_leaf", objNames: ["metal_leaf"], textures: ["metal_leaf": "piercing_1_bronze_color.jpg"], opacity: nil, roughness: ["meatl_leaf": 0.2], metalness: ["metal_leaf": 0.8], normal: nil, doubleSided: nil, scale: 4, tags: [ThemeTag.clouds,ThemeTag.fairy], unlockType: UnlockType.coins, pointLevel: .basic, unlockAmount: 1)
         let stone2 = AssetModel(id: "2", type: .gems, thumbName: "thumb_crystal_26", thumbUrl: "", sceneName: "bead_plane_large", objNames: ["bead_plane_large"], textures: ["bead_plane_large": "bead3_purple.png"], opacity: nil, roughness: ["bead_plane_large": 0.2], metalness: ["bead_plane_large": 0.2], normal: ["bead_plane_large": "bead3_nmp.jpg"], doubleSided: nil, scale: 1, unlockType: .likes, pointLevel: .premium, unlockAmount: 5)
         let stone3 = AssetModel(id: "3", type: .gems, thumbName: "thumb_crystal_27", thumbUrl: "",sceneName: "bead_plane_large", objNames: ["bead_plane_large"], textures: ["bead_plane_large": "bead3_red.png"], opacity: nil, roughness: ["bead_plane_large": 0.2], metalness: ["bead_plane_large": 0.2], normal: ["bead_plane_large": "bead3_nmp.jpg"], doubleSided: nil, scale: 1, unlockType: .coins, pointLevel: .exclusive, unlockAmount: 12)
         let stone4 = AssetModel(id: "4", type: .gems, thumbName: "thumb_crystal_28", thumbUrl: "", sceneName: "bead_plane_large", objNames: ["bead_plane_large"], textures: ["bead_plane_large": "bead3_green.png"], opacity: nil, roughness: ["bead_plane_large": 0.2], metalness: ["bead_plane_large": 0.2], normal: ["bead_plane_large": "bead3_nmp.jpg"], doubleSided: nil, scale: 1, unlockType: .ad, pointLevel: .basic, unlockAmount: 2)
         let pearl = AssetModel(id: "5", type: .gems, thumbName: "thumb_crystal_82", thumbUrl: "", sceneName: "ball", objNames: ["ball"], textures: ["ball": "hair_ball_white.jpg"], opacity: nil, roughness: ["ball": 0.2], metalness: ["ball": 0.4], normal: [:], doubleSided: nil, scale: 0.7, unlockType: .diamonds, pointLevel: .premium, unlockAmount: 8)
-        return [stone1, stone2, stone3, stone4, pearl]
+        return [stone, stone1, stone2, stone3, stone4, pearl]
     }
 
     static var mockEarringsData: [AssetModel] {
@@ -195,3 +214,4 @@ extension AssetModel {
 //        return [accessoryCollection]
 //    }
 }
+

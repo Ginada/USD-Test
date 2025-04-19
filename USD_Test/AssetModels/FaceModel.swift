@@ -8,16 +8,18 @@
 import Foundation
 import RealityKit
 import SwiftUI
+import Combine
 
 class FaceModel: BaseModel, ObservableObject {
-    
+    private var pingPongIsActive = false
+    private var pingPongSubscription: Cancellable?
     // MARK: - Properties
     var allMakeupNodes: [MakeupType: [ModelEntity]] = [:]
     @Published var currentMakeupNodes: [MakeupType: [ModelEntity]] = [:]
     var allNodes: [ModelEntity] {
         allMakeupNodes.values.flatMap { $0 }
     }
-    
+    var animationModel: ModelEntity?
     /// The base model used to create makeup layer clones.
     var baseLayer: ModelEntity!
     
@@ -31,6 +33,8 @@ class FaceModel: BaseModel, ObservableObject {
         // Adjust orientation as needed.
         baseFaceArmature.orientation = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
         self.baseLayer = baseFaceArmature
+        self.animationModel = loadModelEntity(named: "Armature",
+                                               fromResource: "model_lashes_upper")
         
         // Initialize default makeup layers.
         initLayers()
@@ -43,6 +47,7 @@ class FaceModel: BaseModel, ObservableObject {
         for (_, entities) in currentMakeupNodes {
             entities.forEach { $0.isEnabled = false }
         }
+        updateFaceShape(settings: [FaceShape.smile: 0, FaceShape.blink: 0, FaceShape.jawOpen: 0, FaceShape.pout: 0, FaceShape.frown: 0])
     }
     
     /// Hides all active layers for a given makeup type.
@@ -63,7 +68,9 @@ class FaceModel: BaseModel, ObservableObject {
     }
     
     func updateShape(with shape: FaceShape, weight: CGFloat) {
-        allNodes.forEach {node in
+        var allShapeNodes = allNodes
+        allShapeNodes.append(baseLayer)
+        allShapeNodes.forEach {node in
             guard var blendShape = node.components[BlendShapeWeightsComponent.self] else { return }
             var currentWeights = blendShape.weightSet[0].weights
             
@@ -162,16 +169,31 @@ class FaceModel: BaseModel, ObservableObject {
         }
     }
     
+    func updateFaceShape(settings: [FaceShape: Double]) {
+        
+        for setting in settings {
+            updateShape(with: setting.key, weight: setting.value)
+        }
+    }
+    
     /// Adds a new makeup layer for the specified type.
     private func addMakeupLayer(_ type: MakeupType) {
         // Clone the baseLayer as the new makeup layer.
         let newClone = baseLayer.clone(recursive: true)
         newClone.name = "\(type)_layer_\(UUID().uuidString.prefix(6))"
-        
+  
         // Assign a default transparent material.
         let transparent = MaterialManager.transparentMaterial()
         newClone.setMaterial(transparent)
         newClone.transform = baseLayer.transform
+//        if var baseBlendShape = baseLayer.components[BlendShapeWeightsComponent.self],
+//              var newBlendShape = newClone.components[BlendShapeWeightsComponent.self] {
+//               // Copy all weights from baseLayer to newClone
+//               for i in 0..<baseBlendShape.weightSet.count {
+//                   newBlendShape.weightSet[i].weights = baseBlendShape.weightSet[i].weights
+//               }
+//               newClone.components.set(newBlendShape)
+//           }
         
         if allMakeupNodes[type] == nil {
             allMakeupNodes[type] = []
@@ -309,12 +331,155 @@ class FaceModel: BaseModel, ObservableObject {
     }
     
     func stopAnimations() {
-        currentMakeupNodes.forEach { type, makeups in
-            makeups.forEach { makeup in
-                makeup.stopAllAnimations()
+        if let defaultPoseClip = AnimationLibrary.shared.animation(for: "default") {
+            allNodes.forEach { entity in
+                entity.playAnimation(defaultPoseClip, transitionDuration: 0.3, startsPaused: false)
             }
+        } else {
+            print("Default pose animation clip not found in the library.")
         }
+        stopLoopingShapeAnimation()
     }
 }
 
-
+extension FaceModel: AnimatableAvatar {
+    //animation
+    
+    func startPingPongShapeAnimation(
+        with shapes: [(shape: FaceShape, weight: CGFloat)],
+        animationDuration: TimeInterval,
+        pauseAtTarget: TimeInterval,
+        loopPause: TimeInterval
+    ) {
+        stopLoopingShapeAnimation()
+        pingPongIsActive = true
+        
+        func pingPongStep() {
+            guard self.pingPongIsActive else { return }
+            self.updateShapeAnimated(
+                with: shapes,
+                duration: animationDuration,
+                reverse: true,
+                reversePause: pauseAtTarget
+            )
+            // Schedule next ping-pong after forward+pause+reverse+loopPause
+            let totalDelay = animationDuration + pauseAtTarget + animationDuration + loopPause
+            DispatchQueue.main.asyncAfter(deadline: .now() + totalDelay) {
+                pingPongStep()
+            }
+        }
+        
+        pingPongStep()
+    }
+    
+    func updateShapeAnimated(
+        with shapes: [(shape: FaceShape, weight: CGFloat)],
+        duration: TimeInterval = 0.5,
+        reverse: Bool = false,
+        reversePause: TimeInterval = 0.0
+    ) {
+        var animationNodes = allNodes
+        animationNodes.append(animationModel!)
+        // Save original weights if reverse is requested
+        var originalShapes: [(shape: FaceShape, weight: CGFloat)] = []
+        if reverse {
+            animationNodes.forEach { node in
+                guard let blendShapeComponent = node.components[BlendShapeWeightsComponent.self] else { return }
+                for (faceShape, _) in shapes {
+                    var blendIndex: Int?
+                    node.children.forEach { child in
+                        switch child.name {
+                        case "Eyebrows":
+                            blendIndex = faceShape.browIndex
+                        case "Lashes_upper", "Lashes_lower":
+                            blendIndex = faceShape.eyelashesIndex
+                        default:
+                            if blendIndex == nil {
+                                blendIndex = faceShape.rawValue
+                            }
+                        }
+                    }
+                    if let blendIndex = blendIndex,
+                       blendShapeComponent.weightSet[0].weights.indices.contains(blendIndex) {
+                        let currentWeight = CGFloat(blendShapeComponent.weightSet[0].weights[blendIndex])
+                        originalShapes.append((shape: faceShape, weight: currentWeight))
+                    }
+                }
+            }
+        }
+        
+        // Animate to target
+        animationNodes.forEach { node in
+            // Retrieve the blend shape component.
+            guard let blendShapeComponent = node.components[BlendShapeWeightsComponent.self] else {
+                return
+            }
+            let currentData = blendShapeComponent.weightSet[0]
+            let fromWeights = BlendShapeWeights(currentData.weights)
+            var toWeights = fromWeights
+            let weightNames = blendShapeComponent.weightSet.first?.weightNames ?? []
+            for (faceShape, weight) in shapes {
+                var blendIndex: Int?
+                node.children.forEach { child in
+                    switch child.name {
+                    case "Eyebrows":
+                        blendIndex = faceShape.browIndex
+                    case "Lashes_upper", "Lashes_lower":
+                        blendIndex = faceShape.eyelashesIndex
+                    default:
+                        if blendIndex == nil {
+                            blendIndex = faceShape.rawValue
+                        }
+                    }
+                }
+                if let index = blendIndex, fromWeights.indices.contains(index) {
+                    toWeights[index] = Float(weight)
+                }
+            }
+            let animationDefinition = FromToByAnimation<BlendShapeWeights>(
+                weightNames: weightNames,
+                from: fromWeights,
+                to: toWeights,
+                duration: duration,
+                timing: .linear,
+                isAdditive: false,
+                bindTarget: .blendShapeWeights
+            )
+            let animationViewDefinition = AnimationView(source: animationDefinition, delay: 0, speed: 1.0)
+            do {
+                let animationResource = try AnimationResource.generate(with: animationViewDefinition)
+                print("Animation resource:", animationResource)
+                print("Is named animation:", animationResource.name)
+                node.playAnimation(animationResource)
+            } catch {
+                print("Error generating blend shape animation for node \(node.name): \(error)")
+            }
+        }
+        
+        // If reverse is requested, subscribe to completion and animate back
+        if reverse, let node = animationModel, let scene = node.scene {
+            var subscription: Cancellable?
+            subscription = scene.subscribe(
+                to: AnimationEvents.PlaybackCompleted.self,
+                on: node
+            ) { [weak self] _ in
+                subscription?.cancel()
+                guard let self = self else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + reversePause) {
+                    self.updateShapeAnimated(with: originalShapes, duration: duration)
+                }
+            }
+        }
+    }
+    
+    func stopLoopingShapeAnimation() {
+       pingPongIsActive = false
+//        pingPongTimer?.invalidate()
+//        pingPongTimer = nil
+//        loopingAnimationTimer?.invalidate()
+//        loopingAnimationTimer = nil
+//        pingPongSubscription?.cancel()
+//        pingPongSubscription = nil
+    }
+    
+}

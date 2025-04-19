@@ -70,20 +70,45 @@ class BaseModel {
     }
     
     func loadAssetModel(_ model: AssetModel) -> ModelEntity? {
-       
+        
         guard let textureName = model.textures.values.first, let geometryName = model.objNames.first else {return nil}
         // Load the head entity.
-        if let entity = try? Entity.load(named: model.sceneName),
-           let modelEntity = entity.findEntity(named: model.objNames.first!)?.children.first as? ModelEntity {
-            
-            let material = MaterialManager.createPBRMaterial(texture: textureName, normal: model.normal?.values.first, doubleSided: true)
-            modelEntity.setMaterial(material)
-            //set scale
-            let scale = model.scale ?? 1.0
-            modelEntity.scale = SIMD3<Float>(repeating: Float(scale))
-            modelEntity.name = model.objNames.first!
-            
-            return modelEntity
+        if let entity = try? Entity.load(named: model.sceneName) {
+            var accessory: ModelEntity?
+            model.objNames.forEach { name in
+                if let modelEntity = entity.findEntity(named: model.objNames.first!)?.children.first as? ModelEntity, let texture = model.textures[name]{
+                    var normalTexture : String?
+                    var doublesidedValue: Bool = false
+                    var roughnessValue: Float = 0.0
+                    var metalnessValue: Float = 0.0
+                    var opacityValue: Float = 0.0
+                    
+                    if let normal = model.normal {
+                        normalTexture = normal[name]
+                    }
+                    if let roughness = model.roughness {
+                        roughnessValue = roughness[name] ?? 0.0
+                    }
+                    if let metalness = model.metalness {
+                        metalnessValue = metalness[name] ?? 0.0
+                    }
+                    if let opacity = model.opacity {
+                        opacityValue = opacity[name] ?? 0.0
+                    }
+                    if let doublesided = model.doubleSided {
+                        doublesidedValue = doublesided.contains(name)
+                    }
+                    let material = MaterialManager.createPBRMaterial(texture: textureName, normal: normalTexture, metalness: metalnessValue, roughness: roughnessValue, doubleSided: doublesidedValue, opacity: opacityValue)
+                    modelEntity.setMaterial(material)
+                    //set scale
+                    let scale = model.scale ?? 1.0
+                    modelEntity.scale = SIMD3<Float>(repeating: Float(scale))
+                    modelEntity.name = model.objNames.first!
+                    accessory = modelEntity
+                    
+                }
+            }
+            return accessory
         }
         
         return nil
@@ -178,34 +203,48 @@ class BaseModel {
     func replacePlacementObjectsWithSpheres(model: ModelEntity, placementObjects: [Entity]) {
         let spherePrototype = createSphereEntity()
         
-        for placement in placementObjects {
-            guard let modelChild = placement.children.first(where: { $0 is ModelEntity }) as? ModelEntity else {
+        for template in placementObjects {
+            guard let templateModelEntity = template.children.first(where: { $0 is ModelEntity }) as? ModelEntity else {
                 continue
             }
             
-            let childWorldMatrix = modelChild.transformMatrix(relativeTo: nil)
+            let childWorldMatrix = templateModelEntity.transformMatrix(relativeTo: nil)
             let childWorldTransform = Transform(matrix: childWorldMatrix)
             
-            let localTransform = placement.convert(transform: childWorldTransform, from: nil)
+            let localTransform = template.convert(transform: childWorldTransform, from: nil)
             
             let sphereClone = spherePrototype.clone(recursive: true)
-            sphereClone.name = placement.name
+            sphereClone.name = template.name + "_clone"
             
-            if let outlineMaterial = MaterialManager.createCustomOutlineMaterial() {
-                sphereClone.setMaterial(outlineMaterial)
-            }
+            let outlineMaterial = MaterialManager.outLineMaterial()
+            sphereClone.setMaterial(outlineMaterial)
             
             sphereClone.transform = localTransform
          
             sphereClone.generateCollisionShapes(recursive: true)
-            placement.addChild(sphereClone)
-            modelChild.removeFromParent()
-            if placement.parent == nil {
-                model.addChild(placement)
+            template.addChild(sphereClone)
+            placements.append(sphereClone)
+            templateModelEntity.removeFromParent()
+            if template.parent == nil {
+                model.addChild(template)
             }
-            modelChild.removeFromParent()
-            let entity = model.findEntity(named: modelChild.name)
+            templateModelEntity.removeFromParent()
+            let entity = model.findEntity(named: templateModelEntity.name)
             entity?.removeFromParent()
+        }
+    }
+    
+    func hidePlacements() {
+        for placement in placements {
+            let transparentMaterial = MaterialManager.transparentMaterial()
+            placement.model?.materials = [transparentMaterial]
+        }
+    }
+    
+    func showPlacements() {
+        for placement in placements {
+            let placementMaterial = MaterialManager.outLineMaterial()
+            placement.model?.materials = [placementMaterial]
         }
     }
     
@@ -214,7 +253,6 @@ class BaseModel {
         if let activePlacement = activePlacement {
             let clone = activePlacement.clone(recursive: true)
             clone.name = "\(activePlacement.id)_accessory"
-            placements.append(clone)
             placeEntity(entity, clone)
         }
     }
@@ -227,16 +265,16 @@ class BaseModel {
         let worldTransform = Transform(matrix: child.transformMatrix(relativeTo: nil))
         let localTransform = entity.convert(transform: worldTransform, from: nil)
         
-        // Preserve the asset’s original scale.
-        let originalScale = modelEntity.transform.scale
-        var newScale = originalScale
-        if parent.parent?.name == "EarringLeft" {
-            newScale.x = -abs(newScale.x)
-        }
-        
-        // Build the new transform using the placement's translation and rotation with the asset's scale.
-        let newTransform = Transform(scale: newScale, rotation: localTransform.rotation, translation: localTransform.translation)
-        modelEntity.transform = newTransform
+//        // Preserve the asset’s original scale.
+//        let originalScale = modelEntity.transform.scale
+//       // var newScale = originalScale
+////        if parent.parent?.name == "EarringLeft" {
+////            newScale.x = -abs(newScale.x)
+////        }
+//        
+//        // Build the new transform using the placement's translation and rotation with the asset's scale.
+//        let newTransform = Transform(scale: newScale, rotation: localTransform.rotation, translation: localTransform.translation)
+//        modelEntity.transform = newTransform
         
         // Compute orientation: -90° about x plus a 180° about y if on the left earring.
         let rotationX = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
@@ -253,26 +291,57 @@ class BaseModel {
             }
         parent.addChild(modelEntity)
         
-        // Mirror accessory on the corresponding earring.
-        let sourceEarring = (entity.parent?.parent?.name == "EarringLeft") ? earringLeft : earringRight
-        if let correspondingEntity = sourceEarring?.findEntity(named: entity.name) {
-            correspondingEntity.children.forEach {
-                if !$0.name.contains("placement") {
-                    $0.removeFromParent()
-                } else if let childModel = $0 as? ModelEntity {
-                    childModel.model?.materials = [MaterialManager.transparentMaterial()]
-                }
-            }
-            let accessoryClone = modelEntity.clone(recursive: true)
-            let originalWorldMatrix = modelEntity.transformMatrix(relativeTo: nil)
-            let mirrorMatrix = simd_float4x4(diagonal: SIMD4<Float>(-1, 1, 1, 1))
-            let mirroredWorldMatrix = mirrorMatrix * originalWorldMatrix
-            let mirroredWorldTransform = Transform(matrix: mirroredWorldMatrix)
-            let cloneLocalTransform = correspondingEntity.convert(transform: mirroredWorldTransform, from: nil)
-            accessoryClone.transform = cloneLocalTransform
-            correspondingEntity.addChild(accessoryClone)
-        }
+        // 1. Ensure we have both left and right earring nodes.
+        guard let leftEarring = earringLeft, let rightEarring = earringRight else { return }
+
+        // 2. Identify the source and target earrings.
+        //    (Assuming the accessory originally is attached to the left earring.)
+        let sourceEarring: ModelEntity = (entity.parent?.parent?.name == "EarringLeft") ? rightEarring : leftEarring
+        let targetEarring: ModelEntity = (sourceEarring == leftEarring) ? rightEarring : leftEarring
+
+        // 3. Clone the accessory.
+        let accessoryClone = modelEntity.clone(recursive: true)
+        accessoryClone.name = "\(modelEntity.name)_\(child.name)_clone"
+
+        // 4. Get the accessory's world transform.
+        let accessoryWorldMatrix = modelEntity.transformMatrix(relativeTo: nil)
+
+        // 5. Get the source earring's world transform.
+        let sourceWorldMatrix = sourceEarring.transformMatrix(relativeTo: nil)
+
+        // 6. Compute the accessory’s transform relative to the source earring.
+        let relativeMatrix = simd_inverse(sourceWorldMatrix) * accessoryWorldMatrix
+
+        // 7. Apply a reflection along the x-axis.
+        //    This matrix flips the x-axis. (Adjust if your head’s midline is along a different axis.)
+        let reflectionMatrix = simd_float4x4(diagonal: SIMD4<Float>(-1, 1, 1, 1))
+
+        // 8. Compute the mirrored relative transform.
+        let mirroredRelativeMatrix = reflectionMatrix * relativeMatrix
+
+        // 9. Get the target earring's world transform.
+        let targetWorldMatrix = targetEarring.transformMatrix(relativeTo: nil)
+
+        // 10. Create the new accessory transform by applying the mirrored offset to the target earring.
+        let newAccessoryWorldMatrix = targetWorldMatrix * mirroredRelativeMatrix
+
+        // 11. Build a Transform from the new world matrix.
+        let newAccessoryWorldTransform = Transform(matrix: newAccessoryWorldMatrix)
+
+        // 12. Convert the result into the target earring's local space.
+        //     (This is needed when adding as a child so that its transform is expressed relative to that node.)
+        var newAccessoryLocalTransform = targetEarring.convert(transform: newAccessoryWorldTransform, from: nil)
+        // scale in x
+        var newScale = newAccessoryLocalTransform.scale
+        newScale.x = abs(newScale.x)
+        newAccessoryLocalTransform.scale = newScale
+        // 13. Set the clone's transform and attach it.
+        accessoryClone.transform = newAccessoryLocalTransform
+        targetEarring.children.forEach { if ($0.name.contains(child.name) && $0.name.contains("_clone")) { $0.removeFromParent() } }
+        
+        targetEarring.addChild(accessoryClone)
     }
+    
     
      func mirrorTransformX(_ transform: Transform) -> Transform {
         // Reflection matrix along X axis.

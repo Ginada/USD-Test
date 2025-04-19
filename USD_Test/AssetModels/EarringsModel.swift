@@ -102,6 +102,17 @@ class EarringsModel: BaseModel, ObservableObject {
         earringRight = nil
     }
     
+    func placedGemIds() -> [String] {
+        let gemIds = placements.compactMap { placement -> String? in
+            guard let parent = placement.parent, parent.children.count > 1 else { return nil }
+            return parent.children[1].name
+        }
+        // Use a Set to filter out duplicates.
+        let uniqueIds = Array(Set(gemIds))
+        // Remove "_accessory" from each id.
+        return uniqueIds.map { $0.replacingOccurrences(of: "_accessory", with: "") }
+    }
+    
     /// Mirrors a transform along the X axis.
     private func mirrorTransform(_ transform: Transform) -> Transform {
         let mirrorMatrix = simd_float4x4(diagonal: SIMD4<Float>(-1, 1, 1, 1))
@@ -123,7 +134,14 @@ class EarringsModel: BaseModel, ObservableObject {
         let mirrored = leftEarring.clone(recursive: true)
         mirrored.name = "EarringRight"
         mirrored.transform = mirrorTransform(mirrored.transform)
-        mirrorChildNodes(of: mirrored)
+        placements.forEach { placement in
+            if let clonedPlacement = mirrored.findEntity(named: placement.name), let child = clonedPlacement.children.first as? ModelEntity {
+                placements.append(child)
+            }
+            
+        }
+       
+        //mirrorChildNodes(of: mirrored)
         
         return mirrored
     }

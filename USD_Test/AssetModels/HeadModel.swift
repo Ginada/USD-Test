@@ -13,7 +13,7 @@ class HeadModel: AvatarComponent {
     override init() {
         let material = MaterialManager.createPBRMaterial(texture: "Head_medium", normal: "Head_Normal", roughnessTexture: "Head_Roughness")
         //let material = MaterialManager.transparentMaterial()
-        super.init(resourceName: "headModel_anim",
+        super.init(resourceName: "model_head",
                        targetEntityName: "Armature",
                        material: material,
                        orientation: simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0)))
@@ -26,7 +26,7 @@ class HeadModel: AvatarComponent {
         // Locate the head model file.
     
         // Load the head entity.
-        let headEntity = try! Entity.load(named: "headModel_anim")
+        let headEntity = try! Entity.load(named: "model_head")
         
         // Extract the "Armature" ModelEntity from the head entity.
         guard let headArmature = headEntity.findEntity(named: "Armature") as? ModelEntity else {
@@ -57,5 +57,19 @@ class HeadModel: AvatarComponent {
         headArmature.orientation = simd_quatf(angle: -.pi/2, axis: SIMD3<Float>(1, 0, 0))
         
         return headArmature
+    }
+    
+    func updateBodyColor(_ color: BodyColor) {
+        guard let headArmature = armature.first else {
+            fatalError("Head Armature not found")
+        }
+        
+        // Create and apply the PBR material with the specified color.
+        let pbrMaterial = MaterialManager.createPBRMaterial(texture: "Head_\(color.texture)", normal: "Head_Normal", metalness: 0.1,  roughnessTexture: "Head_Roughness")
+        headArmature.setMaterial(pbrMaterial)
+    }
+    
+    override func removeAll() {
+        updateFaceShape(settings: [FaceShape.smile: 0, FaceShape.blink: 0, FaceShape.jawOpen: 0, FaceShape.pout: 0, FaceShape.frown: 0])
     }
 }

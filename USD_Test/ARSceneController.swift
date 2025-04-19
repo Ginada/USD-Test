@@ -21,9 +21,16 @@ class ARSceneController: ARSceneControlling {
     let environmentModel: EnvironmentModel = EnvironmentModel()
     let cameraController: CameraController = CameraController()
     
+    var animationModels: [AnimatableAvatar] {
+        return [faceModel, headModel, browModel, lashesModel]
+    }
     var applicationState: ApplicationState = .none
     let generator = UIImpactFeedbackGenerator(style: .light)
     
+    init() {
+        let materialManager = MaterialManager.shared
+    }
+   
     func playAnimation(_ name: String) {
         headModel.playAnimation(name: name)
         faceModel.playAnimation(name: name)
@@ -32,6 +39,17 @@ class ARSceneController: ARSceneControlling {
         necklaceModel.playAnimation(name: name)
         hairModel.playAnimation(name: name)
         clothingModel.playAnimation(name: name)
+        if name == "idle" {
+            animationModels.forEach { model in
+                model.startPingPongShapeAnimation(with: [(shape: .blink, weight: 1.0)], animationDuration: 0.2, pauseAtTarget: 0.0, loopPause: 5.0)
+            }
+            
+        }
+        if name == "inbetween" {
+            animationModels.forEach { model in
+                model.updateShapeAnimated(with: [(shape: .smile, weight: 0.8)], duration: 0.8, reverse: true, reversePause: 0.1)
+            }
+        }
     }
     
     func setPose(_ name: String) {
@@ -54,6 +72,10 @@ class ARSceneController: ARSceneControlling {
         clothingModel.stopAnimations()
     }
     
+    func updateEyeSize(size: Float) {
+        eyesModel.updateEyeScale(size)
+    }
+    
     func loadHair() {
         hairModel.loadModel(HairStyle.mediumFrontWayvy.hairStyleModel)
     }
@@ -63,7 +85,37 @@ class ARSceneController: ARSceneControlling {
     }
     
     func updateCameraPosition(to position: CameraPosition) {
-        cameraController.cameraPosition = CameraPosition.zoomEar
+        cameraController.cameraPosition = position
+    }
+    
+    func loadHairAccessoryPlacementFile(_ fileName: String) {
+        hairAccessoryModel.setPlacementFile(fileName)
+    }
+    
+    func showPlacements(category: AssetCategory) {
+        switch category {
+        case .earrings:
+            earringsModel.showPlacements()
+        case .necklace:
+            necklaceModel.showPlacements()
+        case .hairAccessories:
+            hairAccessoryModel.showPlacements()
+        default:
+            break
+        }
+    }
+    
+    func hidePlacements(category: AssetCategory) {
+        switch category {
+        case .earrings:
+            earringsModel.hidePlacements()
+        case .necklace:
+            necklaceModel.hidePlacements()
+        case .hairAccessories:
+            hairAccessoryModel.hidePlacements()
+        default:
+            break
+        }
     }
     
     func selectStyle(style: any AssetStyle, selectedCategory: AssetCategory, palette: Palette) {
@@ -96,13 +148,11 @@ class ARSceneController: ARSceneControlling {
         case .faceGems:
             break
         case .earrings:
-            earringsModel.selectAsset(style as! AssetModel)
-            applicationState = .placement
+            earringsModel.loadModelOnAvatar(style as! AssetModel)
         case .createEarring:
             break
         case .necklace:
-            necklaceModel.selectAsset(style as! AssetModel)
-            applicationState = .placement
+            necklaceModel.loadModelOnAvatar(style as! AssetModel)
             //selectMakeup(style: style)
         }
     }
@@ -157,10 +207,71 @@ class ARSceneController: ARSceneControlling {
     }
     
     func updateHairColor(_ color: HairColor) {
-        hairModel.loadModel(HairStyle.mediumFrontWayvy.hairStyleModel)
+        hairModel.updateHairColor(color: color)
+    }
+    
+    func updateBodyColor(_ color: BodyColor) {
+        headModel.updateBodyColor(color)
+    }
+    
+    func updateEyeColor(_ color: EyeColor) {
+        eyesModel.updateEyeColor(color: color)
     }
     
     func removeStyle(selectedCategory: AssetCategory) {
         
     }
+    
+    func updateFaceShape(setting: [FaceShape: Double]) {
+        headModel.updateFaceShape(settings: setting)
+        lashesModel.updateFaceShape(settings: setting)
+        faceModel.updateFaceShape(settings: setting)
+        browModel.updateFaceShape(settings: setting)
+        setting.forEach { shape, value in
+            if shape == .eyeHorizontal {
+                eyesModel.updateEyeDistance(distance: Float(value))
+            }
+            
+            if shape == .eyeSize {
+                eyesModel.updateEyeScale(Float(value))
+            }
+        }
+    }
+    
+    func updateEyeDistance(distance: Float) {
+        eyesModel.updateEyeDistance(distance: distance)
+    }
+    
+    func resetModel() {
+        // remove all makeup
+        faceModel.removeAll()
+        earringsModel.removeAll()
+        necklaceModel.removeAll()
+        hairAccessoryModel.removeAll()
+        lashesModel.removeAll()
+        browModel.removeAll()
+        hairModel.removeAll()
+        headModel.removeAll()
+    }
+    
+    func showHairAccessory() {
+        hairAccessoryModel.showHairAccessory()
+    }
+    
+    func placedEarringGemIds() -> [String] {
+        return earringsModel.placedGemIds()
+    }
+    
+    func placedNecklaceGemIds() -> [String] {
+        return necklaceModel.placedGemIds()
+    }
+    
+    func setHairAccessoryPlacementFile(_ fileName: String) {
+        hairAccessoryModel.setPlacementFile(fileName)
+    }
+    
+    func loadCustomAvatarModel(_ appearance: Appearance) {
+        
+    }
+    
 }

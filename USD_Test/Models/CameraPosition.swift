@@ -61,3 +61,33 @@ extension CameraPosition {
         return Transform(scale: SIMD3<Float>(1, 1, 1), rotation: config.rotation, translation: config.translation)
     }
 }
+
+extension CameraPosition {
+    /// Returns the minimum and maximum Z thresholds for zooming in this position.
+    var zoomThresholds: (min: Float, max: Float) {
+        switch self {
+        case .start:      return (min: 0.16, max: 0.6)
+        case .zoomFace:   return (min: 0.12, max: 0.4)
+        case .center:     return (min: 0.18, max: 0.7)
+        case .zoomEar:    return (min: 0.14, max: 0.5)
+        case .zoomChest:  return (min: 0.16, max: 0.6)
+        case .zoomForehead: return (min: 0.15, max: 0.45)
+        case .body:       return (min: 0.20, max: 0.8)
+        case .customization: return (min: 0.10, max: 0.5)
+        }
+    }
+    
+    /// Returns the corresponding Y range for a given position.
+    var yOffsetRange: (min: Float, max: Float) {
+        switch self {
+        case .start:          return (min: -0.1, max: -0.1)
+        case .zoomFace:       return (min: 0.05, max: 0.0)
+        case .center:         return (min: 0.05, max: 0.12)
+        case .zoomEar:        return (min: 0.0, max: 0.2)
+        case .zoomChest:      return (min: 0.15, max: 0.3)
+        case .zoomForehead:   return (min: 0.1, max: 0.15)
+        case .body:           return (min: 0.05, max: 0.2)
+        case .customization:  return (min: 0.0, max: 0.15)
+        }
+    }
+}

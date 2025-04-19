@@ -256,7 +256,7 @@ enum Pose: CaseIterable {
     }
 }
 
-enum FaceShape: Int, Codable, CaseIterable {
+public enum FaceShape: Int, Codable, CaseIterable {
     case noseTipUp = 0
     case noseTipThick
     case nostrilsThick

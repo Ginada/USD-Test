@@ -39,7 +39,7 @@ extension Entity {
 //    @StateObject private var hairAccessoryModel = HairAccessoryModel()
 //    @StateObject private var clothingModel = ClothingModel()
 //    @StateObject private var environmentModel = EnvironmentModel()
-//    
+//
 //    @StateObject private var cameraController = CameraController()
 //
 //    var body: some View {
@@ -59,12 +59,12 @@ extension Entity {
 //                cameraController: cameraController
 //            )
 //            .edgesIgnoringSafeArea(.all)
-//            
+//
 //            // Additional UI for controls and animations.
 //            controlPanel
 //        }
 //    }
-//    
+//
 //    var controlPanel: some View {
 //        VStack {
 //            HStack {
@@ -148,7 +148,7 @@ extension Entity {
 //            .accentColor(.blue)
 //        }
 //    }
-//    
+//
 //    private func updateFaceShapes() {
 //        let shapes: [FaceShape: Double] = [
 //            .browsInLower: -1,
@@ -164,13 +164,13 @@ extension Entity {
 //            lashesModel.updateShape(with: shape, weight: weight)
 //        }
 //    }
-//    
+//
 //    private func selectMakeup() {
 //        for layer in MakeupLayer.mockedData {
 //            faceModel.selectedMakeupWith(layer: layer)
 //        }
 //    }
-//    
+//
 //    var accessoryModel: AssetModel {
 //        AssetModel(
 //            id: "1",
@@ -202,7 +202,7 @@ public struct ContentView: View {
     // Create a sample accessory asset.
     private var accessoryModel: AssetModel {
         AssetModel(
-            id: "1",
+            id: "1dfAS",
             type: .gems,
             thumbName: "thumb_crystal_36",
             thumbUrl: "",
@@ -243,21 +243,83 @@ public struct ARControlPanelView<Controller: ARSceneControlling>: View {
     
     public var body: some View {
         VStack {
-            HStack {
-                Button("Start Anim") {
-                    controller.playAnimation("idle")
-                }
-                Button("Stop Anim") {
-                    controller.stopAnimations()
-                }
-                Button("pose1") {
-                    controller.setPose("pose_1_anim")
-                }
-                Button("pose2") {
-                    controller.setPose("pose_2_anim")
-                }
-                Button("Load Earr") {
-                    controller.loadEarrings(with: AssetModel.mockEarringsData[0])
+            ScrollView(.horizontal) {
+                HStack {
+                    Button("Start Anim") {
+                        controller.playAnimation("idle")
+                    }
+                    Button("Inbetween anim") {
+                        controller.playAnimation("inbetween")
+                    }
+                    Button("Stop Anim") {
+                        controller.stopAnimations()
+                    }
+                    Button("Load makeup") {
+                        controller.selectStyle(style: MakeupStyle.mockedFoundationData()[0], selectedCategory: .foundation, palette: Palette.foundationPalette)
+                    }
+                    Button("reset") {
+                        controller.resetModel()
+                    }
+                    Button("camera") {
+                        controller.updateCameraPosition(to: CameraPosition.zoomFace)
+                    }
+                    
+                    Button("accessory 1") {
+                        controller.selectStyle(style: AssetModel.mockGemsData.first!, selectedCategory: .earrings, palette: Palette.eyeshadowPalette)
+                    }
+                    Button("accessory 2") {
+                        controller.selectStyle(style: AssetModel.mockGemsData[1], selectedCategory: .earrings, palette: Palette.eyeshadowPalette)
+                    }
+                    Button("accessory Necklace") {
+                        controller.selectStyle(style: AssetModel.mockGemsData[1], selectedCategory: .necklace, palette: Palette.eyeshadowPalette)
+                    }
+                    Button("shape") {
+                        controller.updateFaceShape(setting: [.browsInLower: 1, .eyesDroopy: -0.4, .chinShort: 0.7, .smile: 0.9, .eyeHorizontal: -0.7])
+                    }
+                    Button("hair color") {
+                        controller.updateHairColor(HairColor.blue_dark)
+                    }
+                    Button("body color") {
+                        controller.updateBodyColor(.brightest)
+                    }
+                    Button("eye color") {
+                        controller.updateEyeColor(.amber_halo)
+                    }
+                    Button("pose1") {
+                        controller.setPose("pose_1_anim")
+                    }
+                    Button("pose2") {
+                        controller.setPose("pose_2_anim")
+                    }
+                    Button("hide placements") {
+                        controller.hidePlacements(category: .earrings)
+                    }
+                    Button("show placements") {
+                        controller.showPlacements(category: .earrings)
+                    }
+                    Button("earring gem ids") {
+                        print(controller.placedEarringGemIds())
+                    }
+                    Button("load hair placement") {
+                        controller.loadHairAccessoryPlacementFile("hair_medium_wayvy_placement_relative")
+                    }
+                    Button("load hair placement") {
+                        controller.showHairAccessory()
+                    }
+                    Button("necklace gem ids") {
+                        print(controller.placedNecklaceGemIds())
+                    }
+                    Button("Load Necklace") {
+                        controller.selectStyle(style: AssetModel.mockNecklaceData[0], selectedCategory: .necklace, palette: Palette.eyeshadowPalette)
+                    }
+                    Button("update face") {
+                        controller.updateFaceShape(setting: [.browsInLower: 1, .eyesDroopy: -0.4, .chinShort: 0.7, .smile: 0.9, .eyeSize: 1, .noseSize: 1, .noseTipUp: 0.5, .eyeShapeRound: 0.5, .lipsWide: 0.5, .lipsLarge: 0.4])
+                    }
+                    Button("Load Earr") {
+                        controller.selectStyle(style: AssetModel.mockEarringsData[0], selectedCategory: .earrings, palette: Palette.eyeshadowPalette)
+                    }
+                   
+//                        controller.selectStyle(style: MakeupStyle.mockedEyeShadowData()[0], selectedCategory: .eyeshadow, palette: Palette.eyebrowPalette)
                 }
             }
             HStack {
@@ -267,6 +329,12 @@ public struct ARControlPanelView<Controller: ARSceneControlling>: View {
                 Button("Camera: Front") {
                     controller.updateCameraPosition(to: .center)
                 }
+                //slider -0.9-0.9
+                Slider(value: Binding(
+                    get: {return 0.5}, set: { newValue in
+                        controller.updateEyeSize(size: newValue)
+                    }
+                ), in: -1...1, step: 0.1)
             }
         }
         .padding()
